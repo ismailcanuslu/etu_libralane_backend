@@ -1,0 +1,64 @@
+# Backend (FastAPI) + runner image build.
+#
+# Aynı `librelane-network` üzerinde çalışır; gateway, MinIO ve web ile aynı ağda.
+# Runner image'ı build edilir ama kalıcı bir service olarak çalışmaz —
+# backend Docker SDK ile her job için ephemeral bir container açar.
+#
+# Önce: docker network create librelane-network
+#
+# Bind mount mantığı:
+#   /var/lib/librelane/jobs HOST üzerinde fiziksel klasör.
+#   - Backend container'ında AYNI path'e mount edilir → backend dosya yazar.
+#   - Backend, runner'ı spawn ederken AYNI host path'i runner'ın /work'üne mount eder.
+#   Bu sayede backend'in os.path ile yazdığı dizin = runner'ın çalışma dizini.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: librelane/backend:latest
+    container_name: librelane-backend
+    restart: unless-stopped
+    networks:
+      - librelane-network
+    ports:
+      - "8001:8001"
+    environment:
+      DB_PATH: /data/jobs.db
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_SECURE: "false"
+      JOBS_HOST_DIR: /var/lib/librelane/jobs
+      RUNNER_IMAGE_BASIC: librelane/runner:basic
+      RUNNER_NETWORK: librelane-network
+    volumes:
+      # Docker SDK için socket
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Job workspace dizini — backend ve runner aynı host path'i görür
+      - /var/lib/librelane/jobs:/var/lib/librelane/jobs
+      # SQLite kalıcılığı
+      - librelane-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Runner image'ını build etmek için yardımcı service.
+  # Bir profile altında — `docker compose --profile build-runner up runner-image-build`
+  # ile manuel olarak çalıştırılır; backend onu çalışan bir servis olarak beklemez.
+  runner-image-build:
+    profiles: ["build-runner"]
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    image: librelane/runner:basic
+    container_name: librelane-runner-builder
+    command: ["true"]
+    restart: "no"
+
+volumes:
+  librelane-data:
+
+networks:
+  librelane-network:
+    external: true
