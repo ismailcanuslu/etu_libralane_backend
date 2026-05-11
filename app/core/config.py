@@ -12,10 +12,7 @@ class Settings(BaseSettings):
 
     db_path: str = "/data/jobs.db"
 
-    minio_endpoint: str = "minio:9000"
-    minio_root_user: str = "minioadmin"
-    minio_root_password: str = "minioadmin"
-    minio_secure: bool = False
+    workspace_root: str = "/workspace"
 
     jobs_host_dir: str = "/var/lib/librelane/jobs"
     jobs_workdir_in_runner: str = "/work"
@@ -28,7 +25,10 @@ class Settings(BaseSettings):
     # Eşzamanlı en fazla kaç job çalışabilir; aşan job'lar QUEUED kalır.
     max_concurrent_jobs: int = 4
 
-    anthropic_api_key: str | None = None
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "gemma4:26b"
+    ollama_timeout_seconds: int = 300
+    enable_openlane_tools: bool = False
 
 
 @lru_cache(maxsize=1)

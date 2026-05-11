@@ -1,9 +1,10 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
 from typing import Dict, List
 
 from app.core.config import get_settings
 
 _settings = get_settings()
+_OPENLANE_ACTIONS = frozenset({"timing", "power", "drc", "lvs", "pnr", "gdsii"})
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,19 @@ class ToolSpec:
 
 _BASIC = _settings.runner_image_basic
 _OPENLANE = _settings.runner_image_openlane
+
+
+def _openlane_cmd(step: str) -> List[str]:
+    return [
+        "sh",
+        "-lc",
+        (
+            "set -e; "
+            "command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; "
+            "test -f config.json || { echo 'config.json gerekli'; exit 2; }; "
+            f"openlane --from run --to {step} config.json"
+        ),
+    ]
 
 
 TOOL_CATALOG: Dict[str, ToolSpec] = {
@@ -67,72 +81,85 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
     "formal": ToolSpec(
         id="formal",
         label="Formal Doğrulama",
-        description="SymbiYosys gerektirir (henüz kurulu değil).",
+        description="SymbiYosys gerektirir (runner image'ında kurulu değil).",
         image=_BASIC,
-        cmd=["sh", "-lc", "echo 'formal: not implemented yet'; exit 2"],
+        cmd=[
+            "sh",
+            "-lc",
+            "command -v sby >/dev/null 2>&1 || { echo 'SymbiYosys (sby) bulunamadi'; exit 2; }; echo 'formal: proje sby dosyasi gerekir'; exit 2",
+        ],
         group="tools",
         enabled=False,
     ),
     "timing": ToolSpec(
         id="timing",
         label="Timing Analizi",
-        description="OpenSTA gerektirir (M5 / OpenLane image).",
+        description="OpenLane STA adimi (OpenLane image gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'timing: openlane image required'; exit 2"],
+        cmd=_openlane_cmd("sta"),
         group="analysis",
-        enabled=False,
+        enabled=True,
     ),
     "power": ToolSpec(
         id="power",
         label="Güç Analizi",
-        description="Statik/dinamik güç analizi (ileri).",
+        description="OpenLane guc raporu adimi (OpenLane image gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'power: not implemented yet'; exit 2"],
+        cmd=_openlane_cmd("power"),
         group="analysis",
-        enabled=False,
+        enabled=True,
     ),
     "drc": ToolSpec(
         id="drc",
         label="DRC Kontrolü",
-        description="Magic/KLayout DRC (ileri).",
+        description="OpenLane DRC adimi (OpenLane image gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'drc: not implemented yet'; exit 2"],
+        cmd=_openlane_cmd("drc"),
         group="analysis",
-        enabled=False,
+        enabled=True,
     ),
     "lvs": ToolSpec(
         id="lvs",
         label="LVS Kontrolü",
-        description="Layout vs Schematic (ileri).",
+        description="OpenLane LVS adimi (OpenLane image gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'lvs: not implemented yet'; exit 2"],
+        cmd=_openlane_cmd("lvs"),
         group="analysis",
-        enabled=False,
+        enabled=True,
     ),
     "pnr": ToolSpec(
         id="pnr",
         label="Fiziksel Tasarım",
-        description="OpenLane PnR (ileri).",
+        description="OpenLane place & route akisi (config.json gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'pnr: not implemented yet'; exit 2"],
+        cmd=["sh", "-lc", "set -e; command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; test -f config.json || { echo 'config.json gerekli'; exit 2; }; openlane config.json"],
         group="build",
-        enabled=False,
+        enabled=True,
     ),
     "gdsii": ToolSpec(
         id="gdsii",
         label="GDSII Dışa Aktarma",
-        description="Tapeout (ileri).",
+        description="OpenLane GDSII cikti adimi (OpenLane image gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "echo 'gdsii: not implemented yet'; exit 2"],
+        cmd=_openlane_cmd("gds"),
         group="build",
-        enabled=False,
+        enabled=True,
     ),
 }
 
 
+def _effective_spec(spec: ToolSpec) -> ToolSpec:
+    if spec.id in _OPENLANE_ACTIONS and not _settings.enable_openlane_tools:
+        return replace(spec, enabled=False)
+    return spec
+
+
 def get_tool(action: str) -> ToolSpec | None:
-    return TOOL_CATALOG.get(action)
+    spec = TOOL_CATALOG.get(action)
+    if spec is None:
+        return None
+    return _effective_spec(spec)
 
 
 def list_tools() -> List[ToolSpec]:
-    return list(TOOL_CATALOG.values())
+    return [_effective_spec(spec) for spec in TOOL_CATALOG.values()]

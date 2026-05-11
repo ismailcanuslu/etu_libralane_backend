@@ -1,47 +1,68 @@
-import os
-from dotenv import load_dotenv
-import anthropic
+from __future__ import annotations
 
-load_dotenv()
+from typing import Iterable, Mapping
 
-api_key = os.getenv("ANTHROPIC_API_KEY")
+import httpx
 
-client = anthropic.Anthropic(api_key=api_key)
+from app.core.config import get_settings
 
-def analyze_log(log_text: str):
-    if not api_key:
-        return "Hata: ANTHROPIC_API_KEY bulunamadi."
+_settings = get_settings()
+_SYSTEM_PROMPT = (
+    "You are an ASIC EDA assistant for LibreLane/OpenLane RTL-to-GDS flows. "
+    "Answer concisely in Turkish when the user writes in Turkish."
+)
 
+
+def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> str:
+    payload = {
+        "model": _settings.ollama_model,
+        "messages": messages,
+        "stream": False,
+        "options": {"num_predict": max_tokens},
+    }
+    url = f"{_settings.ollama_base_url.rstrip('/')}/api/chat"
     try:
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=600,
-            system="You are an ASIC EDA assistant.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""
-Analyze this EDA tool log.
+        with httpx.Client(timeout=_settings.ollama_timeout_seconds) as client:
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.HTTPError as exc:
+        return f"Ollama API hatasi: {exc}"
 
-Return:
-- summary
-- success or fail
-- possible reason
-- next step
+    message = data.get("message")
+    if isinstance(message, dict):
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
 
-Log:
-{log_text}
-"""
-                }
-            ]
-        )
+    return "Ollama bos yanit dondurdu."
 
-        parts = []
-        for block in msg.content:
-            if getattr(block, "type", None) == "text":
-                parts.append(block.text)
 
-        return "\n".join(parts).strip()
+def analyze_log(log_text: str) -> str:
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": (
+                "Analyze this EDA tool log.\n\n"
+                "Return:\n"
+                "- summary\n"
+                "- success or fail\n"
+                "- possible reason\n"
+                "- next step\n\n"
+                f"Log:\n{log_text}"
+            ),
+        },
+    ]
+    return _ollama_chat(messages, max_tokens=600)
 
-    except Exception as e:
-        return f"Anthropic API hatasi: {str(e)}"
+
+def chat_reply(message: str, history: Iterable[Mapping[str, str]] | None = None) -> str:
+    messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    for item in history or ():
+        role = item.get("role")
+        content = item.get("content")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message})
+    return _ollama_chat(messages, max_tokens=900)

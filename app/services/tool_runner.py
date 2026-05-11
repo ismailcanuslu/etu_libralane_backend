@@ -2,7 +2,7 @@
 
 Akış (her job için):
   1. workspace dizinini hazırla (host path)
-  2. MinIO'dan proje dosyalarını indir
+  2. Workspace'ten proje dosyalarını indir
   3. runner container'ı oluştur ve canlı log akışını başlat
   4. her log satırını dosyaya yaz + pubsub'a publish et
   5. exit code'a göre status, log/artefakt upload, DB güncelleme
@@ -94,7 +94,7 @@ async def execute_job(job_id: str) -> None:
             await broker.publish(
                 job_id,
                 "status",
-                {"status": "preparing", "message": "MinIO'dan proje dosyaları indiriliyor"},
+                {"status": "preparing", "message": "Workspace'ten proje dosyaları indiriliyor"},
             )
 
             try:
@@ -109,6 +109,21 @@ async def execute_job(job_id: str) -> None:
                     job_id, status=JobStatus.FAILED, error_message=f"file fetch failed: {e}"
                 )
                 await broker.publish(job_id, "error", {"message": f"dosya indirme hatası: {e}"})
+                await broker.close(job_id)
+                return
+
+            if not downloaded:
+                message = "Proje workspace'inde kopyalanacak dosya yok."
+                jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
+                await broker.publish(job_id, "error", {"message": message})
+                await broker.close(job_id)
+                return
+
+            has_verilog = any(path.endswith(".v") for path in downloaded)
+            if not has_verilog:
+                message = "Proje workspace'inde .v dosyası bulunamadı."
+                jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
+                await broker.publish(job_id, "error", {"message": message})
                 await broker.close(job_id)
                 return
 

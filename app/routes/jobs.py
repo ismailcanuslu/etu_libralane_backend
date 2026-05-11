@@ -50,21 +50,16 @@ def get_job(job_id: str):
 
 @router.get("/{job_id}/log")
 def get_job_log(job_id: str):
-    """MinIO'dan job log'unu text/plain olarak streamler."""
+    """Workspace'teki job log dosyasını text/plain olarak streamler."""
     job = jobs_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     if not job.log_object_key:
         raise HTTPException(status_code=404, detail="log not yet available")
 
-    response = storage.stream_object(job.project_id, job.log_object_key)
+    try:
+        chunks = storage.iter_object_chunks(job.project_id, job.log_object_key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="log not yet available") from None
 
-    def _iter():
-        try:
-            for chunk in response.stream(amt=64 * 1024):
-                yield chunk
-        finally:
-            response.close()
-            response.release_conn()
-
-    return StreamingResponse(_iter(), media_type="text/plain; charset=utf-8")
+    return StreamingResponse(chunks, media_type="text/plain; charset=utf-8")

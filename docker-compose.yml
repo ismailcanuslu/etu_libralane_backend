@@ -1,6 +1,6 @@
 # Backend (FastAPI) + runner image build.
 #
-# Aynı `librelane-network` üzerinde çalışır; gateway, MinIO ve web ile aynı ağda.
+# Aynı `librelane-network` üzerinde çalışır; gateway ve web ile aynı ağda.
 # Runner image'ı build edilir ama kalıcı bir service olarak çalışmaz —
 # backend Docker SDK ile her job için ephemeral bir container açar.
 #
@@ -26,16 +26,19 @@ services:
       - "8001:8001"
     environment:
       DB_PATH: /data/jobs.db
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_SECURE: "false"
+      WORKSPACE_ROOT: /workspace
       JOBS_HOST_DIR: /var/lib/librelane/jobs
       RUNNER_IMAGE_BASIC: librelane/runner:basic
+      RUNNER_IMAGE_OPENLANE: librelane/runner:openlane
+      ENABLE_OPENLANE_TOOLS: ${ENABLE_OPENLANE_TOOLS:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:26b}
       RUNNER_NETWORK: librelane-network
     volumes:
       # Docker SDK için socket
       - /var/run/docker.sock:/var/run/docker.sock
+      # Kalıcı proje dosyaları
+      - ./workspace:/workspace
       # Job workspace dizini — backend ve runner aynı host path'i görür
       - /var/lib/librelane/jobs:/var/lib/librelane/jobs
       # SQLite kalıcılığı
@@ -53,6 +56,16 @@ services:
       dockerfile: Dockerfile
     image: librelane/runner:basic
     container_name: librelane-runner-builder
+    command: ["true"]
+    restart: "no"
+
+  openlane-runner-image-build:
+    profiles: ["build-runner"]
+    build:
+      context: ./runner
+      dockerfile: Dockerfile.openlane
+    image: librelane/runner:openlane
+    container_name: librelane-openlane-runner-builder
     command: ["true"]
     restart: "no"
 

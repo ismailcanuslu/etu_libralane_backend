@@ -1,0 +1,6 @@
+# librelane/runner:openlane
+# OpenLane2 tabanli runner; ENABLE_OPENLANE_TOOLS=true iken backend bu imaji kullanir.
+FROM ghcr.io/efabless/openlane2:latest
+
+WORKDIR /work
+CMD ["bash"]
