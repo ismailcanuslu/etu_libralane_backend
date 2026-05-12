@@ -4,38 +4,22 @@
 #   docker network create librelane-network
 #   sudo mkdir -p /var/lib/librelane/jobs
 #
-# Ollama (host'ta native kurulu):
-#   Backend `OLLAMA_BASE_URL=http://host.docker.internal:11434` ile host Ollama'ya gider.
-#   Servis kapalıysa `OLLAMA_HOST_START_COMMAND` host PID 1 namespace'inde çalıştırılır;
-#   bunun için aşağıdaki `pid: host`, `privileged` ve dbus mount gerekir.
-#   Host'ta: systemctl enable --now ollama ve `ollama pull <model>`.
+# Ollama yalnizca host'ta calisir (compose icinde ollama servisi yok).
+#   Host: systemctl enable --now ollama
+#   Host: ollama pull <model>
+#   Ollama'nin container'dan erisilebilmesi icin host'ta dinleme adresi acik olmali
+#   (or. OLLAMA_HOST=0.0.0.0:11434 veya systemd override).
+#   Backend varsayilan: OLLAMA_BASE_URL=http://host.docker.internal:11434
+#   Otomatik baslatma: OLLAMA_HOST_START_COMMAND ile host PID 1'de systemctl start ollama
+#   (pid: host, privileged, dbus mount asagida).
 #
-# İsteğe bağlı compose içi Ollama:
-#   docker compose --profile bundled-ollama up -d
-#   ve OLLAMA_BASE_URL=http://ollama:11434 verin.
-#
-# Runner imajları (job başına ephemeral container):
+# Runner imajlari (job basina ephemeral container):
 #   docker compose --profile build-runner build
-# OpenLane1 runner amd64 imajı; ARM host'ta pull/build sırasında --platform=linux/amd64 kullanın.
+# OpenLane1 runner amd64 imaji; ARM host'ta pull/build sirasinda --platform=linux/amd64 kullanin.
 
 services:
-  ollama:
-    profiles: ["bundled-ollama"]
-    image: ollama/ollama:latest
-    container_name: librelane-ollama
-    restart: unless-stopped
-    networks:
-      - librelane-network
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: librelane/backend:latest
+    image: ghcr.io/ismailcanuslu/etu_libralane_backend:sha-4003df0
     container_name: librelane-backend
     restart: unless-stopped
     pid: host
@@ -74,28 +58,27 @@ services:
       - "host.docker.internal:host-gateway"
 
   runner-image-build:
-    profiles: ["build-runner"]
+    profiles: [ "build-runner" ]
     build:
       context: ./runner
       dockerfile: Dockerfile
     image: librelane/runner:basic
     container_name: librelane-runner-builder
-    command: ["true"]
+    command: [ "true" ]
     restart: "no"
 
   openlane-runner-image-build:
-    profiles: ["build-runner"]
+    profiles: [ "build-runner" ]
     build:
       context: ./runner
       dockerfile: Dockerfile.openlane
     image: librelane/runner:openlane
     container_name: librelane-openlane-runner-builder
-    command: ["true"]
+    command: [ "true" ]
     restart: "no"
 
 volumes:
   librelane-data:
-  ollama-data:
 
 networks:
   librelane-network:

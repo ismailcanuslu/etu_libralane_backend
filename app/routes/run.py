@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from typing import List, Optional
@@ -8,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.services import jobs_repo
 from app.services.pubsub import broker
-from app.services.tool_runner import cancel_job, schedule_job
+from app.services.tool_runner import cancel_job, execute_job
 from app.tools_catalog import build_tool_command, get_tool
 
 router = APIRouter(prefix="/run", tags=["run"])
@@ -22,7 +23,7 @@ class RunRequest(BaseModel):
 
 
 @router.post("")
-def start_run(req: RunRequest):
+async def start_run(req: RunRequest):
     spec = get_tool(req.action)
     if spec is None:
         raise HTTPException(status_code=400, detail=f"unknown action: {req.action}")
@@ -45,7 +46,7 @@ def start_run(req: RunRequest):
         command=json.dumps(command),
     )
 
-    schedule_job(job.id)
+    asyncio.create_task(execute_job(job.id))
 
     return {
         "job_id": job.id,

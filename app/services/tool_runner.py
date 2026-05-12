@@ -302,8 +302,3 @@ async def cancel_job(job_id: str) -> bool:
     jobs_repo.update_job(job_id, status=JobStatus.CANCELLED)
     await broker.publish(job_id, "status", {"status": "cancelled"})
     return cancelled or True
-
-
-def schedule_job(job_id: str) -> None:
-    """FastAPI handler'larından çağrılır — async task'i background'a salar."""
-    asyncio.create_task(execute_job(job_id))

@@ -96,7 +96,11 @@ def get_ollama_status() -> dict[str, object]:
         return {
             "ready": False,
             "model": model,
-            "message": f"Ollama erisilemedi: {exc}",
+            "message": (
+                f"Ollama erisilemedi ({base_url}): {exc}. "
+                "Host'ta systemctl status ollama ve model pull kontrol edin; "
+                "container'dan erisim icin OLLAMA_HOST=0.0.0.0:11434 gerekebilir."
+            ),
             "ollama_base_url": base_url,
         }
 
