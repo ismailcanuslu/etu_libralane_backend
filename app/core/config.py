@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     jobs_workdir_in_runner: str = "/work"
     jobs_artifacts_prefix: str = "_jobs"
 
-    runner_image_basic: str = "librelane/runner:basic"
+    runner_image_basic: str = "efabless/openlane:ci2504-dev-amd64"
     runner_image_openlane: str = "efabless/openlane:ci2504-dev-amd64"
     runner_network: str = "librelane-network"
     runner_timeout_seconds: int = 0
@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     enable_openlane_tools: bool = True
     openlane_pdk_host_path: str = ""
     openlane_pdk_mount_path: str = "/openlane/pdk"
+
+    enable_host_terminal: bool = True
+    host_terminal_use_nsenter: bool = True
+    host_terminal_shell: str = "/bin/bash"
+    max_host_terminal_sessions: int = 4
 
 
 @lru_cache(maxsize=1)

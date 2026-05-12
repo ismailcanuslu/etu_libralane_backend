@@ -9,6 +9,7 @@ from app.routes.jobs import router as jobs_router
 from app.routes.run import router as run_router
 from app.routes.tools import router as tools_router
 from app.routes.files import router as files_router
+from app.routes.terminal import router as terminal_router
 
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ app.include_router(run_router)
 app.include_router(jobs_router)
 app.include_router(ai_router)
 app.include_router(files_router)
+app.include_router(terminal_router)
 
 
 @app.get("/")

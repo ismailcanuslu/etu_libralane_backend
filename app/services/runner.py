@@ -182,10 +182,15 @@ def remove_container(container) -> None:
         pass
 
 
-def kill_container_by_id(container_id: str) -> bool:
+def interrupt_container_by_id(container_id: str, *, signal: str = "SIGINT") -> bool:
+    """Container ana sürecine SIGINT (Ctrl+C) veya başka sinyal gönderir."""
     try:
         container = _client().containers.get(container_id)
-        container.kill()
+        container.kill(signal=signal)
         return True
     except (APIError, NotFound):
         return False
+
+
+def kill_container_by_id(container_id: str) -> bool:
+    return interrupt_container_by_id(container_id, signal="SIGKILL")

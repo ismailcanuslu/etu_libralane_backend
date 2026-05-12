@@ -24,7 +24,7 @@ from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.runner import (
     create_container,
-    kill_container_by_id,
+    interrupt_container_by_id,
     remove_container,
     stream_container,
     wait_container,
@@ -101,6 +101,56 @@ def _runner_extra_volumes(spec: ToolSpec) -> dict:
     }
 
 
+async def _fail_job(job_id: str, *, message: str, error_message: str | None = None) -> None:
+    jobs_repo.mark_finished(
+        job_id,
+        status=JobStatus.FAILED,
+        exit_code=-1,
+        error_message=error_message or message,
+    )
+    await broker.publish(job_id, "error", {"message": message})
+    await broker.publish(
+        job_id,
+        "done",
+        {
+            "status": JobStatus.FAILED.value,
+            "exit_code": -1,
+            "log_object_key": None,
+            "artifacts_prefix": None,
+        },
+    )
+
+
+def _is_cancelled(job_id: str) -> bool:
+    job = jobs_repo.get_job(job_id)
+    return job is not None and job.status == JobStatus.CANCELLED
+
+
+async def _finish_cancelled(job_id: str, *, message: str) -> None:
+    jobs_repo.mark_finished(
+        job_id,
+        status=JobStatus.CANCELLED,
+        exit_code=130,
+        error_message=message,
+    )
+    await broker.publish(job_id, "status", {"status": "cancelled", "message": message})
+    await broker.publish(
+        job_id,
+        "line",
+        {"stream": "system", "line": message, "ts": _now_iso()},
+    )
+    await broker.publish(
+        job_id,
+        "done",
+        {
+            "status": JobStatus.CANCELLED.value,
+            "exit_code": 130,
+            "log_object_key": None,
+            "artifacts_prefix": None,
+        },
+    )
+
+
 async def execute_job(job_id: str) -> None:
     job = jobs_repo.get_job(job_id)
     if job is None:
@@ -108,12 +158,7 @@ async def execute_job(job_id: str) -> None:
 
     spec = get_tool(job.action)
     if spec is None:
-        jobs_repo.mark_finished(
-            job_id,
-            status=JobStatus.FAILED,
-            error_message=f"unknown action: {job.action}",
-        )
-        await broker.publish(job_id, "error", {"message": "unknown action"})
+        await _fail_job(job_id, message=f"unknown action: {job.action}")
         await broker.close(job_id)
         return
 
@@ -132,6 +177,9 @@ async def execute_job(job_id: str) -> None:
 
     async with sem:
         try:
+            if _is_cancelled(job_id):
+                return
+
             os.makedirs(workdir, exist_ok=True)
             await broker.publish(
                 job_id,
@@ -147,34 +195,28 @@ async def execute_job(job_id: str) -> None:
                     exclude_prefixes=[f"{_settings.jobs_artifacts_prefix}/"],
                 )
             except Exception as e:  # noqa: BLE001
-                jobs_repo.mark_finished(
-                    job_id, status=JobStatus.FAILED, error_message=f"file fetch failed: {e}"
+                await _fail_job(
+                    job_id,
+                    message=f"dosya indirme hatası: {e}",
+                    error_message=f"file fetch failed: {e}",
                 )
-                await broker.publish(job_id, "error", {"message": f"dosya indirme hatası: {e}"})
-                await broker.close(job_id)
                 return
 
             if not downloaded and _needs_workspace_files(spec):
-                message = "Proje workspace'inde kopyalanacak dosya yok."
-                jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
-                await broker.publish(job_id, "error", {"message": message})
-                await broker.close(job_id)
+                await _fail_job(job_id, message="Proje workspace'inde kopyalanacak dosya yok.")
                 return
 
             if spec.requires_verilog:
                 has_verilog = any(path.endswith(".v") for path in downloaded)
                 if not has_verilog:
-                    message = "Proje workspace'inde .v dosyası bulunamadı."
-                    jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
-                    await broker.publish(job_id, "error", {"message": message})
-                    await broker.close(job_id)
+                    await _fail_job(job_id, message="Proje workspace'inde .v dosyası bulunamadı.")
                     return
 
             if spec.requires_config and not _has_config_file(downloaded):
-                message = "Proje workspace'inde config.json veya config.tcl bulunamadı."
-                jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
-                await broker.publish(job_id, "error", {"message": message})
-                await broker.close(job_id)
+                await _fail_job(
+                    job_id,
+                    message="Proje workspace'inde config.json veya config.tcl bulunamadı.",
+                )
                 return
 
             await broker.publish(
@@ -184,6 +226,9 @@ async def execute_job(job_id: str) -> None:
             )
 
             command = _job_command(job, spec)
+
+            if _is_cancelled(job_id):
+                return
 
             # Container oluştur
             try:
@@ -195,11 +240,11 @@ async def execute_job(job_id: str) -> None:
                     extra_volumes=_runner_extra_volumes(spec),
                 )
             except Exception as e:  # noqa: BLE001
-                jobs_repo.mark_finished(
-                    job_id, status=JobStatus.FAILED, error_message=f"container create failed: {e}"
+                await _fail_job(
+                    job_id,
+                    message=f"container oluşturulamadı: {e}",
+                    error_message=f"container create failed: {e}",
                 )
-                await broker.publish(job_id, "error", {"message": f"container oluşturulamadı: {e}"})
-                await broker.close(job_id)
                 return
 
             jobs_repo.mark_started(job_id, container_id=container.id)
@@ -215,6 +260,9 @@ async def execute_job(job_id: str) -> None:
                 )
                 try:
                     async for line in stream_container(container):
+                        if _is_cancelled(job_id):
+                            interrupt_container_by_id(container.id, signal="SIGINT")
+                            break
                         formatted = f"[{line.stream}] {line.line}"
                         log_file.write(formatted + "\n")
                         await broker.publish(
@@ -231,11 +279,11 @@ async def execute_job(job_id: str) -> None:
 
             remove_container(container)
 
+            if _is_cancelled(job_id):
+                return
+
             # Final status
-            current = jobs_repo.get_job(job_id)
-            if current and current.status == JobStatus.CANCELLED:
-                final_status = JobStatus.CANCELLED
-            elif exit_code == 0:
+            if exit_code == 0:
                 final_status = JobStatus.DONE
             else:
                 final_status = JobStatus.FAILED
@@ -295,10 +343,9 @@ async def cancel_job(job_id: str) -> bool:
     if job.status not in (JobStatus.RUNNING, JobStatus.QUEUED):
         return False
 
-    cancelled = False
     if job.container_id:
-        cancelled = kill_container_by_id(job.container_id)
+        interrupt_container_by_id(job.container_id, signal="SIGINT")
 
-    jobs_repo.update_job(job_id, status=JobStatus.CANCELLED)
-    await broker.publish(job_id, "status", {"status": "cancelled"})
-    return cancelled or True
+    message = "İşlem iptal edildi (SIGINT / Ctrl+C)."
+    await _finish_cancelled(job_id, message=message)
+    return True

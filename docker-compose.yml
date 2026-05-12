@@ -5,17 +5,16 @@
 #   sudo mkdir -p /var/lib/librelane/jobs
 #
 # Ollama yalnizca host'ta calisir (compose icinde ollama servisi yok).
-#   Host: systemctl enable --now ollama
-#   Host: ollama pull <model>
+#   Host: ollama pull gemma4:26b
 #   Ollama'nin container'dan erisilebilmesi icin host'ta dinleme adresi acik olmali
 #   (or. OLLAMA_HOST=0.0.0.0:11434 veya systemd override).
-#   Backend varsayilan: OLLAMA_BASE_URL=http://host.docker.internal:11434
-#   Otomatik baslatma: OLLAMA_HOST_START_COMMAND ile host PID 1'de systemctl start ollama
-#   (pid: host, privileged, dbus mount asagida).
+#   Backend: OLLAMA_BASE_URL=http://host.docker.internal:11434
+#   OLLAMA_AUTO_START=true iken backend host'ta `ollama run <OLLAMA_MODEL>` komutunu
+#   nsenter ile arka planda calistirir.
 #
-# Runner imajlari (job basina ephemeral container):
-#   docker compose --profile build-runner build
-# OpenLane1 runner amd64 imaji; ARM host'ta pull/build sirasinda --platform=linux/amd64 kullanin.
+# Runner imaji (job basina ephemeral container):
+#   docker pull efabless/openlane:ci2504-dev-amd64
+# Opsiyonel yerel runner build profili (build-runner); runtime efabless/openlane.
 
 services:
   backend:
@@ -27,27 +26,32 @@ services:
     networks:
       - librelane-network
     ports:
-      - "${BACKEND_PORT:-8001}:8001"
+      - "8001:8001"
     environment:
       DB_PATH: /data/jobs.db
       WORKSPACE_ROOT: /workspace
       JOBS_HOST_DIR: /var/lib/librelane/jobs
+      JOBS_WORKDIR_IN_RUNNER: /work
       JOBS_ARTIFACTS_PREFIX: _jobs
-      RUNNER_IMAGE_BASIC: ${RUNNER_IMAGE_BASIC:-librelane/runner:basic}
-      RUNNER_IMAGE_OPENLANE: ${RUNNER_IMAGE_OPENLANE:-efabless/openlane:ci2504-dev-amd64}
+      RUNNER_IMAGE_BASIC: efabless/openlane:ci2504-dev-amd64
+      RUNNER_IMAGE_OPENLANE: efabless/openlane:ci2504-dev-amd64
       RUNNER_NETWORK: librelane-network
-      RUNNER_TIMEOUT_SECONDS: ${RUNNER_TIMEOUT_SECONDS:-0}
-      MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-4}
-      ENABLE_OPENLANE_TOOLS: ${ENABLE_OPENLANE_TOOLS:-true}
-      OPENLANE_PDK_HOST_PATH: ${OPENLANE_PDK_HOST_PATH:-}
-      OPENLANE_PDK_MOUNT_PATH: ${OPENLANE_PDK_MOUNT_PATH:-/openlane/pdk}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:26b}
-      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
-      OLLAMA_AUTO_START: ${OLLAMA_AUTO_START:-true}
-      OLLAMA_HOST_START_COMMAND: ${OLLAMA_HOST_START_COMMAND:-nsenter -t 1 -m -u -n -i systemctl start ollama}
-      OLLAMA_CONTAINER_NAME: ${OLLAMA_CONTAINER_NAME:-}
-      OLLAMA_READY_TIMEOUT_SECONDS: ${OLLAMA_READY_TIMEOUT_SECONDS:-60}
+      RUNNER_TIMEOUT_SECONDS: "0"
+      MAX_CONCURRENT_JOBS: "4"
+      ENABLE_OPENLANE_TOOLS: "true"
+      OPENLANE_PDK_HOST_PATH: ""
+      OPENLANE_PDK_MOUNT_PATH: /openlane/pdk
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: gemma4:26b
+      OLLAMA_TIMEOUT_SECONDS: "300"
+      OLLAMA_AUTO_START: "true"
+      OLLAMA_HOST_START_COMMAND: ""
+      OLLAMA_CONTAINER_NAME: ""
+      OLLAMA_READY_TIMEOUT_SECONDS: "60"
+      ENABLE_HOST_TERMINAL: "true"
+      HOST_TERMINAL_USE_NSENTER: "true"
+      HOST_TERMINAL_SHELL: /bin/bash
+      MAX_HOST_TERMINAL_SESSIONS: "4"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket

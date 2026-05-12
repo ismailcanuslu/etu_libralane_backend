@@ -9,6 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.services import jobs_repo
 from app.services.pubsub import broker
+from app.services.terminal_tabs import registry as terminal_registry
 from app.services.tool_runner import cancel_job, execute_job
 from app.tools_catalog import build_tool_command, get_tool
 
@@ -45,6 +46,7 @@ async def start_run(req: RunRequest):
         image=spec.image,
         command=json.dumps(command),
     )
+    terminal_registry.open(job.id, req.project_id, spec.id)
 
     asyncio.create_task(execute_job(job.id))
 
@@ -54,6 +56,49 @@ async def start_run(req: RunRequest):
         "action": job.action,
         "image": job.image,
     }
+
+
+@router.post("/terminals/{job_id}")
+def open_terminal_tab(job_id: str):
+    job = jobs_repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    record = terminal_registry.open(job.id, job.project_id, job.action)
+    return {
+        "job_id": job.id,
+        "project_id": job.project_id,
+        "action": job.action,
+        "opened_at": record.opened_at.isoformat(),
+    }
+
+
+@router.get("/terminals")
+def list_terminal_tabs(project_id: Optional[str] = None):
+    tabs = []
+    for record in terminal_registry.list_open(project_id=project_id):
+        job = jobs_repo.get_job(record.job_id)
+        if not job:
+            continue
+        tabs.append(
+            {
+                "job_id": job.id,
+                "project_id": job.project_id,
+                "action": job.action,
+                "status": job.status.value if hasattr(job.status, "value") else job.status,
+                "exit_code": job.exit_code,
+                "opened_at": record.opened_at.isoformat(),
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+            }
+        )
+    return {"tabs": tabs}
+
+
+@router.delete("/terminals/{job_id}")
+def close_terminal_tab(job_id: str):
+    if not terminal_registry.close(job_id):
+        raise HTTPException(status_code=404, detail="terminal tab not found")
+    return {"job_id": job_id, "closed": True}
 
 
 @router.get("/{job_id}")

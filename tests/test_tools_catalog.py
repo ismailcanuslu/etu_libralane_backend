@@ -69,6 +69,23 @@ class ToolsCatalogTests(unittest.TestCase):
     def test_catalog_size(self) -> None:
         self.assertGreaterEqual(len(TOOL_CATALOG), 16 * 2 + 6)
 
+    def test_all_catalog_tools_use_openlane_runner(self) -> None:
+        expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")
+        for spec in list_tools():
+            self.assertEqual(
+                spec.image,
+                expected,
+                f"{spec.id} beklenen runner imajini kullanmiyor",
+            )
+
+    def test_core_tools_use_openlane_runner(self) -> None:
+        expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")
+        for action in ("smoke-test", "lint", "simulation", "synthesis", "verification", "formal"):
+            spec = get_tool(action)
+            self.assertIsNotNone(spec, action)
+            assert spec is not None
+            self.assertEqual(spec.image, expected)
+
     def test_manifest_json_is_parseable(self) -> None:
         from pathlib import Path
 

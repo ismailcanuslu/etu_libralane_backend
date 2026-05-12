@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 import subprocess
 import time
 
@@ -7,12 +8,30 @@ import docker
 import httpx
 from docker.errors import APIError, NotFound
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 
 
 def _tags_url() -> str:
     settings = get_settings()
     return f"{settings.ollama_base_url.rstrip('/')}/api/tags"
+
+
+def build_ollama_host_start_command(settings: Settings | None = None) -> str:
+    """Host'ta Ollama'yi baslatmak icin nsenter komutu.
+
+    Ozel OLLAMA_HOST_START_COMMAND verilmediyse `ollama run <model>` arka planda calisir.
+    """
+    settings = settings or get_settings()
+    custom = settings.ollama_host_start_command.strip()
+    if custom:
+        return custom
+
+    model = shlex.quote(settings.ollama_model)
+    return (
+        "nsenter -t 1 -m -u -n -i -p -F -- sh -lc "
+        f"'command -v ollama >/dev/null 2>&1 || exit 127; "
+        f"nohup ollama run {model} </dev/null >>/tmp/ollama-run.log 2>&1 &'"
+    )
 
 
 def _ollama_ready(timeout_seconds: float) -> bool:
@@ -31,17 +50,16 @@ def _ollama_ready(timeout_seconds: float) -> bool:
 
 def _start_host_ollama(command: str) -> bool:
     try:
-        completed = subprocess.run(
+        subprocess.Popen(
             command,
             shell=True,
-            check=False,
-            timeout=30,
-            capture_output=True,
-            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired:
+    except OSError:
         return False
-    return completed.returncode == 0
+    return True
 
 
 def _start_ollama_container(container_name: str) -> bool:
@@ -68,9 +86,7 @@ def ensure_ollama_running() -> None:
     if not settings.ollama_auto_start:
         return
 
-    host_command = settings.ollama_host_start_command.strip()
-    if host_command:
-        _start_host_ollama(host_command)
+    _start_host_ollama(build_ollama_host_start_command(settings))
 
     container_name = settings.ollama_container_name.strip()
     if container_name:
@@ -98,7 +114,7 @@ def get_ollama_status() -> dict[str, object]:
             "model": model,
             "message": (
                 f"Ollama erisilemedi ({base_url}): {exc}. "
-                "Host'ta systemctl status ollama ve model pull kontrol edin; "
+                f"Host'ta `ollama run {model}` veya `ollama serve` ile servisi acin; "
                 "container'dan erisim icin OLLAMA_HOST=0.0.0.0:11434 gerekebilir."
             ),
             "ollama_base_url": base_url,

@@ -25,8 +25,15 @@ class ToolSpec:
     requires_pdk: bool = False
 
 
-_BASIC = _settings.runner_image_basic
 _OPENLANE = _settings.runner_image_openlane
+_RUNNER = _OPENLANE
+
+
+def _require_yosys(script: str) -> List[str]:
+    return _shell(
+        "set -e; command -v yosys >/dev/null 2>&1 || { echo 'yosys bulunamadi'; exit 2; }; "
+        f"yosys -p {shlex.quote(script)}"
+    )
 
 
 def _shell(script: str) -> List[str]:
@@ -88,7 +95,7 @@ def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
             id=smoke_id,
             label=entry.get("label") or hub_key,
             description=notes or f"OpenLane1 {hub_key} smoke testi.",
-            image=_OPENLANE,
+            image=_RUNNER,
             cmd=_shell(_resolve_binary_script(candidates, entry["smoke_argv"])),
             group="openlane1",
             enabled=base_enabled,
@@ -100,7 +107,7 @@ def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
             id=probe_id,
             label=f"{entry.get('label') or hub_key} Probe",
             description=f"PATH uzerinde {hub_key} binary varligini dogrular.",
-            image=_OPENLANE,
+            image=_RUNNER,
             cmd=_shell(_resolve_binary_script(candidates, entry["probe_argv"])),
             group="openlane1",
             badge="Probe",
@@ -112,7 +119,7 @@ def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
         id="openlane1-flow",
         label="OpenLane1 Flow",
         description="OpenLane1 flow.tcl ile tam tasarim akisi (design adi ve flow.tcl gerekir).",
-        image=_OPENLANE,
+        image=_RUNNER,
         cmd=[],
         group="build",
         badge="PnR",
@@ -129,9 +136,13 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
     "smoke-test": ToolSpec(
         id="smoke-test",
         label="Smoke Test",
-        description="Tüm Verilog kaynaklarının elaborate olup olmadığını hızlıca dener.",
-        image=_BASIC,
-        cmd=["sh", "-lc", "set -e; ls *.v >/dev/null 2>&1 || { echo 'no .v files'; exit 1; }; iverilog -o /tmp/smoke.out *.v && echo 'SMOKE OK'"],
+        description="efabless/openlane imajında Yosys ile Verilog dosyalarının okunup okunamadığını dener.",
+        image=_RUNNER,
+        cmd=_shell(
+            "set -e; ls *.v >/dev/null 2>&1 || { echo 'no .v files'; exit 1; }; "
+            "command -v yosys >/dev/null 2>&1 || { echo 'yosys bulunamadi'; exit 2; }; "
+            "yosys -p 'read_verilog *.v; stat' && echo 'SMOKE OK'"
+        ),
         group="tools",
         badge="Hızlı",
         requires_verilog=True,
@@ -139,44 +150,52 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
     "lint": ToolSpec(
         id="lint",
         label="RTL Lint",
-        description="Verilator --lint-only ile statik analiz.",
-        image=_BASIC,
-        cmd=["sh", "-lc", "verilator --lint-only --Wall *.v"],
+        description="efabless/openlane imajında Yosys ile hiyerarşi ve okunabilirlik kontrolü.",
+        image=_RUNNER,
+        cmd=_require_yosys("read_verilog *.v; hierarchy -check; stat"),
         group="tools",
         requires_verilog=True,
     ),
     "simulation": ToolSpec(
         id="simulation",
         label="Simülasyon",
-        description="iverilog + vvp ile testbench koşturur (tb_*.v dosyaları beklenir).",
-        image=_BASIC,
-        cmd=["sh", "-lc", "set -e; iverilog -o sim *.v tb_*.v && vvp sim"],
+        description="efabless/openlane imajında iverilog/vvp varsa testbench koşturur.",
+        image=_RUNNER,
+        cmd=_shell(
+            "set -e; "
+            "command -v iverilog >/dev/null 2>&1 && command -v vvp >/dev/null 2>&1 || "
+            "{ echo 'iverilog/vvp efabless/openlane imajinda bulunamadi'; exit 2; }; "
+            "iverilog -o sim *.v tb_*.v && vvp sim"
+        ),
         group="build",
         requires_verilog=True,
     ),
     "synthesis": ToolSpec(
         id="synthesis",
         label="Sentez",
-        description="Yosys ile RTL → gate-level netlist (deneysel).",
-        image=_BASIC,
-        cmd=["sh", "-lc", "yosys -p 'read_verilog *.v; synth; write_verilog netlist.v'"],
+        description="efabless/openlane imajında Yosys ile gate-level netlist üretir.",
+        image=_RUNNER,
+        cmd=_require_yosys("read_verilog *.v; synth; write_verilog netlist.v"),
         group="build",
         requires_verilog=True,
     ),
     "verification": ToolSpec(
         id="verification",
         label="Doğrulama",
-        description="Lint + smoke testi tek geçişte.",
-        image=_BASIC,
-        cmd=["sh", "-lc", "set -e; verilator --lint-only --Wall *.v && iverilog -o /tmp/v.out *.v && echo 'VERIFY OK'"],
+        description="efabless/openlane imajında Yosys ile hızlı RTL doğrulaması.",
+        image=_RUNNER,
+        cmd=_shell(
+            "set -e; command -v yosys >/dev/null 2>&1 || { echo 'yosys bulunamadi'; exit 2; }; "
+            "yosys -p 'read_verilog *.v; stat' && echo 'VERIFY OK'"
+        ),
         group="build",
         requires_verilog=True,
     ),
     "formal": ToolSpec(
         id="formal",
         label="Formal Doğrulama",
-        description="SymbiYosys gerektirir (runner image'ında kurulu değil).",
-        image=_BASIC,
+        description="efabless/openlane imajında SymbiYosys (sby) bulunmuyor.",
+        image=_RUNNER,
         cmd=[
             "sh",
             "-lc",
@@ -191,7 +210,7 @@ TOOL_CATALOG.update(_build_openlane1_catalog())
 
 
 def _effective_spec(spec: ToolSpec) -> ToolSpec:
-    if spec.image == _OPENLANE and not _settings.enable_openlane_tools:
+    if spec.image == _RUNNER and not _settings.enable_openlane_tools:
         return replace(spec, enabled=False)
     return spec
 
