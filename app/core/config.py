@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     runner_image_basic: str = "librelane/runner:basic"
     runner_image_openlane: str = "ghcr.io/efabless/openlane2:latest"
     runner_network: str = "librelane-network"
-    runner_timeout_seconds: int = 60 * 30
+    runner_timeout_seconds: int = 0
     # Eşzamanlı en fazla kaç job çalışabilir; aşan job'lar QUEUED kalır.
     max_concurrent_jobs: int = 4
 
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     ollama_container_name: str = ""
     ollama_host_start_command: str = ""
     ollama_ready_timeout_seconds: int = 60
-    enable_openlane_tools: bool = False
+    enable_openlane_tools: bool = True
 
 
 @lru_cache(maxsize=1)

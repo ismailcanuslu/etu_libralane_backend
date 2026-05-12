@@ -1,10 +1,16 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import desc, select
+from sqlmodel import Session, desc, select
 
 from app.core.db import session_scope
 from app.models.job import Job, JobStatus
+
+
+def _detach(session: Session, job: Job) -> Job:
+    session.refresh(job)
+    session.expunge(job)
+    return job
 
 
 def create_job(project_id: str, action: str, image: str, command: str) -> Job:
@@ -18,13 +24,15 @@ def create_job(project_id: str, action: str, image: str, command: str) -> Job:
     with session_scope() as session:
         session.add(job)
         session.flush()
-        session.refresh(job)
-    return job
+        return _detach(session, job)
 
 
 def get_job(job_id: str) -> Optional[Job]:
     with session_scope() as session:
-        return session.get(Job, job_id)
+        job = session.get(Job, job_id)
+        if job is None:
+            return None
+        return _detach(session, job)
 
 
 def list_jobs(
@@ -37,7 +45,10 @@ def list_jobs(
         if project_id:
             stmt = stmt.where(Job.project_id == project_id)
         stmt = stmt.order_by(desc(Job.created_at)).limit(limit).offset(offset)
-        return list(session.exec(stmt).all())
+        jobs = list(session.exec(stmt).all())
+        for job in jobs:
+            session.expunge(job)
+        return jobs
 
 
 def update_job(job_id: str, **fields) -> Optional[Job]:
@@ -50,8 +61,7 @@ def update_job(job_id: str, **fields) -> Optional[Job]:
                 setattr(job, key, value)
         session.add(job)
         session.flush()
-        session.refresh(job)
-        return job
+        return _detach(session, job)
 
 
 def mark_started(job_id: str, container_id: Optional[str] = None) -> Optional[Job]:

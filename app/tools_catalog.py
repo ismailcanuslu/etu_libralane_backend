@@ -1,10 +1,11 @@
+import shlex
 from dataclasses import dataclass, replace
 from typing import Dict, List
 
 from app.core.config import get_settings
+from app.openlane_steps import CLASSIC_OPENLANE_STEP_IDS
 
 _settings = get_settings()
-_OPENLANE_ACTIONS = frozenset({"timing", "power", "drc", "lvs", "pnr", "gdsii"})
 
 
 @dataclass(frozen=True)
@@ -23,17 +24,48 @@ _BASIC = _settings.runner_image_basic
 _OPENLANE = _settings.runner_image_openlane
 
 
-def _openlane_cmd(step: str) -> List[str]:
-    return [
-        "sh",
-        "-lc",
-        (
-            "set -e; "
-            "command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; "
-            "test -f config.json || { echo 'config.json gerekli'; exit 2; }; "
-            f"openlane --from run --to {step} config.json"
-        ),
-    ]
+def _openlane_shell(script: str) -> List[str]:
+    return ["sh", "-lc", script]
+
+
+def _openlane_preflight() -> str:
+    return (
+        "set -e; "
+        "command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; "
+        "test -f config.json || { echo 'config.json gerekli'; exit 2; }; "
+    )
+
+
+def _openlane_only_cmd(step_id: str) -> List[str]:
+    return _openlane_shell(f"{_openlane_preflight()}openlane --only {shlex.quote(step_id)} config.json")
+
+
+def _openlane_full_cmd() -> List[str]:
+    return _openlane_shell(f"{_openlane_preflight()}openlane config.json")
+
+
+def _openlane_step_action_id(step_id: str) -> str:
+    return "openlane-" + step_id.replace(".", "-").lower()
+
+
+def _openlane_step_label(step_id: str) -> str:
+    return step_id.replace(".", " · ")
+
+
+def _build_openlane_step_catalog() -> Dict[str, ToolSpec]:
+    catalog: Dict[str, ToolSpec] = {}
+    for step_id in CLASSIC_OPENLANE_STEP_IDS:
+        action_id = _openlane_step_action_id(step_id)
+        catalog[action_id] = ToolSpec(
+            id=action_id,
+            label=_openlane_step_label(step_id),
+            description=f"OpenLane Classic: yalnızca {step_id} adımı.",
+            image=_OPENLANE,
+            cmd=_openlane_only_cmd(step_id),
+            group="openlane",
+            enabled=True,
+        )
+    return catalog
 
 
 TOOL_CATALOG: Dict[str, ToolSpec] = {
@@ -91,65 +123,76 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         group="tools",
         enabled=False,
     ),
+    "openlane-classic": ToolSpec(
+        id="openlane-classic",
+        label="OpenLane Classic",
+        description="OpenLane2 tam Classic akışı (config.json gerekir).",
+        image=_OPENLANE,
+        cmd=_openlane_full_cmd(),
+        group="build",
+        badge="PnR",
+        enabled=True,
+    ),
     "timing": ToolSpec(
         id="timing",
         label="Timing Analizi",
-        description="OpenLane STA adimi (OpenLane image gerekir).",
+        description="OpenLane STA adımı (OpenROAD.STAPostPNR).",
         image=_OPENLANE,
-        cmd=_openlane_cmd("sta"),
+        cmd=_openlane_only_cmd("OpenROAD.STAPostPNR"),
         group="analysis",
         enabled=True,
     ),
     "power": ToolSpec(
         id="power",
         label="Güç Analizi",
-        description="OpenLane guc raporu adimi (OpenLane image gerekir).",
+        description="OpenLane IR drop raporu adımı.",
         image=_OPENLANE,
-        cmd=_openlane_cmd("power"),
+        cmd=_openlane_only_cmd("OpenROAD.IRDropReport"),
         group="analysis",
         enabled=True,
     ),
     "drc": ToolSpec(
         id="drc",
         label="DRC Kontrolü",
-        description="OpenLane DRC adimi (OpenLane image gerekir).",
+        description="OpenLane Magic DRC adımı.",
         image=_OPENLANE,
-        cmd=_openlane_cmd("drc"),
+        cmd=_openlane_only_cmd("Magic.DRC"),
         group="analysis",
         enabled=True,
     ),
     "lvs": ToolSpec(
         id="lvs",
         label="LVS Kontrolü",
-        description="OpenLane LVS adimi (OpenLane image gerekir).",
+        description="OpenLane LVS adımı.",
         image=_OPENLANE,
-        cmd=_openlane_cmd("lvs"),
+        cmd=_openlane_only_cmd("Checker.LVS"),
         group="analysis",
         enabled=True,
     ),
     "pnr": ToolSpec(
         id="pnr",
         label="Fiziksel Tasarım",
-        description="OpenLane place & route akisi (config.json gerekir).",
+        description="OpenLane place & route akışı (config.json gerekir).",
         image=_OPENLANE,
-        cmd=["sh", "-lc", "set -e; command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; test -f config.json || { echo 'config.json gerekli'; exit 2; }; openlane config.json"],
+        cmd=_openlane_full_cmd(),
         group="build",
         enabled=True,
     ),
     "gdsii": ToolSpec(
         id="gdsii",
         label="GDSII Dışa Aktarma",
-        description="OpenLane GDSII cikti adimi (OpenLane image gerekir).",
+        description="OpenLane GDSII çıktı adımı.",
         image=_OPENLANE,
-        cmd=_openlane_cmd("gds"),
+        cmd=_openlane_only_cmd("Magic.StreamOut"),
         group="build",
         enabled=True,
     ),
 }
+TOOL_CATALOG.update(_build_openlane_step_catalog())
 
 
 def _effective_spec(spec: ToolSpec) -> ToolSpec:
-    if spec.id in _OPENLANE_ACTIONS and not _settings.enable_openlane_tools:
+    if spec.image == _OPENLANE and not _settings.enable_openlane_tools:
         return replace(spec, enabled=False)
     return spec
 
