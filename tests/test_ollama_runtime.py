@@ -3,8 +3,8 @@ import unittest
 
 os.environ.setdefault("OLLAMA_HOST_START_COMMAND", "")
 
-from app.core.config import get_settings
-from app.services.ollama_runtime import build_ollama_host_start_command
+from app.core.config import Settings, get_settings
+from app.services.ollama_runtime import build_ollama_host_start_command, _candidate_ollama_base_urls
 
 
 class OllamaRuntimeTests(unittest.TestCase):
@@ -23,6 +23,13 @@ class OllamaRuntimeTests(unittest.TestCase):
         self.assertEqual(build_ollama_host_start_command(), "systemctl start ollama")
         os.environ.pop("OLLAMA_HOST_START_COMMAND", None)
         get_settings.cache_clear()
+
+    def test_candidate_urls_include_localhost(self) -> None:
+        get_settings.cache_clear()
+        settings = get_settings()
+        urls = _candidate_ollama_base_urls(settings)
+        self.assertIn("http://127.0.0.1:11434", urls)
+        self.assertEqual(urls[0], settings.ollama_base_url.rstrip("/"))
 
 
 if __name__ == "__main__":

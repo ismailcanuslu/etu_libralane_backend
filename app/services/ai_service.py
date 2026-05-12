@@ -5,7 +5,7 @@ from typing import Iterable, Mapping
 import httpx
 
 from app.core.config import get_settings
-from app.services.ollama_runtime import ensure_ollama_running
+from app.services.ollama_runtime import ensure_ollama_running, resolve_ollama_base_url_sync
 
 _settings = get_settings()
 _SYSTEM_PROMPT = (
@@ -16,13 +16,14 @@ _SYSTEM_PROMPT = (
 
 def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> str:
     ensure_ollama_running()
+    base_url = resolve_ollama_base_url_sync() or _settings.ollama_base_url.rstrip("/")
     payload = {
         "model": _settings.ollama_model,
         "messages": messages,
         "stream": False,
         "options": {"num_predict": max_tokens},
     }
-    url = f"{_settings.ollama_base_url.rstrip('/')}/api/chat"
+    url = f"{base_url}/api/chat"
     try:
         with httpx.Client(timeout=_settings.ollama_timeout_seconds) as client:
             response = client.post(url, json=payload)

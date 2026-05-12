@@ -15,14 +15,14 @@ class CreateShellSessionRequest(BaseModel):
 
 
 @router.get("/status")
-def terminal_status():
+async def terminal_status():
     return host_terminal_status()
 
 
 @router.post("/sessions")
-def create_shell_session(req: CreateShellSessionRequest):
+async def create_shell_session(req: CreateShellSessionRequest):
     try:
-        session = registry.create(req.project_id)
+        session = await asyncio.to_thread(registry.create, req.project_id)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {
@@ -50,8 +50,9 @@ def list_shell_sessions(project_id: Optional[str] = Query(default=None)):
 
 
 @router.delete("/sessions/{session_id}")
-def close_shell_session(session_id: str):
-    if not registry.close(session_id):
+async def close_shell_session(session_id: str):
+    closed = await asyncio.to_thread(registry.close, session_id)
+    if not closed:
         raise HTTPException(status_code=404, detail="shell session not found")
     return {"session_id": session_id, "closed": True}
 

@@ -1,10 +1,12 @@
+import asyncio
+
 from fastapi import APIRouter, WebSocket
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
 from app.services.ai_chat_hub import hub
 from app.services.ai_service import analyze_log, chat_reply
-from app.services.ollama_runtime import get_ollama_status
+from app.services.ollama_runtime import get_ollama_status_async
 
 router = APIRouter(prefix="/ai")
 
@@ -24,19 +26,20 @@ class ChatRequest(BaseModel):
 
 
 @router.get("/status")
-def ai_status():
-    return get_ollama_status()
+async def ai_status():
+    return await get_ollama_status_async()
 
 
 @router.post("/analyze")
-def analyze(request: AIRequest):
-    result = analyze_log(request.log)
+async def analyze(request: AIRequest):
+    result = await asyncio.to_thread(analyze_log, request.log)
     return {"analysis": result}
 
 
 @router.post("/chat")
-def chat(request: ChatRequest):
-    result = chat_reply(
+async def chat(request: ChatRequest):
+    result = await asyncio.to_thread(
+        chat_reply,
         request.message,
         [{"role": item.role, "content": item.content} for item in request.history],
     )

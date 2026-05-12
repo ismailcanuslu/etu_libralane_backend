@@ -101,6 +101,7 @@ class HostShellRegistry:
 
         master_fd, slave_fd = pty.openpty()
         _set_winsize(master_fd, 24, 80)
+        os.set_blocking(master_fd, False)
 
         env = os.environ.copy()
         env["TERM"] = "xterm-256color"
@@ -179,11 +180,33 @@ registry = HostShellRegistry()
 
 async def relay_master_to_websocket(session: HostShellSession, websocket) -> None:
     loop = asyncio.get_running_loop()
-    while True:
-        data = await loop.run_in_executor(None, session.read, 4096)
+    queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+
+    def _on_readable() -> None:
+        if session.closed_at is not None:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+            return
+        try:
+            data = os.read(session.master_fd, 4096)
+        except BlockingIOError:
+            return
+        except OSError:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+            return
         if not data:
-            break
-        await websocket.send_bytes(data)
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+            return
+        loop.call_soon_threadsafe(queue.put_nowait, data)
+
+    loop.add_reader(session.master_fd, _on_readable)
+    try:
+        while True:
+            data = await queue.get()
+            if data is None:
+                break
+            await websocket.send_bytes(data)
+    finally:
+        loop.remove_reader(session.master_fd)
 
 
 async def relay_websocket_to_master(session: HostShellSession, websocket) -> None:

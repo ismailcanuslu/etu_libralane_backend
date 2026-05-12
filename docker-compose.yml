@@ -8,7 +8,7 @@
 #   Host: ollama pull gemma4:26b
 #   Ollama'nin container'dan erisilebilmesi icin host'ta dinleme adresi acik olmali
 #   (or. OLLAMA_HOST=0.0.0.0:11434 veya systemd override).
-#   Backend: OLLAMA_BASE_URL=http://host.docker.internal:11434
+#   Backend host aginda calisir; Ollama host'ta 127.0.0.1:11434 ise OLLAMA_BASE_URL ayni adres olmali.
 #   OLLAMA_AUTO_START=true iken backend host'ta `ollama run <OLLAMA_MODEL>` komutunu
 #   nsenter ile arka planda calistirir.
 #
@@ -21,12 +21,9 @@ services:
     image: ghcr.io/ismailcanuslu/etu_libralane_backend:sha-4003df0
     container_name: librelane-backend
     restart: unless-stopped
+    network_mode: host
     pid: host
     privileged: true
-    networks:
-      - librelane-network
-    ports:
-      - "8001:8001"
     environment:
       DB_PATH: /data/jobs.db
       WORKSPACE_ROOT: /workspace
@@ -41,7 +38,7 @@ services:
       ENABLE_OPENLANE_TOOLS: "true"
       OPENLANE_PDK_HOST_PATH: ""
       OPENLANE_PDK_MOUNT_PATH: /openlane/pdk
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
       OLLAMA_MODEL: gemma4:26b
       OLLAMA_TIMEOUT_SECONDS: "300"
       OLLAMA_AUTO_START: "true"
@@ -58,8 +55,6 @@ services:
       - ./workspace:/workspace
       - /var/lib/librelane/jobs:/var/lib/librelane/jobs
       - librelane-data:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   runner-image-build:
     profiles: [ "build-runner" ]
