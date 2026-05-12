@@ -8,25 +8,24 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.core import storage
 from app.core.workspace_paths import WorkspacePathError
 
-router = APIRouter(prefix="/workspace", tags=["workspace"])
+router = APIRouter(prefix="/files", tags=["files"])
 
 
 def _error(message: str, status_code: int) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"error": message})
 
 
-@router.get("/projects")
+@router.get("")
 def list_projects():
     projects = storage.list_projects()
     serialized = [storage.serialize_project(project) for project in projects]
     return {
         "count": len(serialized),
         "projects": serialized,
-        "buckets": serialized,
     }
 
 
-@router.post("/projects/{project_id}")
+@router.post("/{project_id}")
 def create_project(project_id: str):
     try:
         storage.ensure_project(project_id)
@@ -36,11 +35,11 @@ def create_project(project_id: str):
         return _error(str(exc), 502)
     return JSONResponse(
         status_code=201,
-        content={"project": project_id, "bucket": project_id, "status": "ready"},
+        content={"project": project_id, "status": "ready"},
     )
 
 
-@router.delete("/projects/{project_id}")
+@router.delete("/{project_id}")
 def delete_project(project_id: str):
     try:
         storage.delete_project(project_id)
@@ -48,10 +47,10 @@ def delete_project(project_id: str):
         return _error(str(exc), 400)
     except OSError as exc:
         return _error(str(exc), 502)
-    return {"project": project_id, "bucket": project_id, "status": "deleted"}
+    return {"project": project_id, "status": "deleted"}
 
 
-@router.get("/projects/{project_id}/objects")
+@router.get("/{project_id}/objects")
 def list_project_objects(project_id: str, request: Request):
     prefix = request.query_params.get("prefix", "")
     recursive = request.query_params.get("recursive", "true") != "false"
@@ -64,7 +63,6 @@ def list_project_objects(project_id: str, request: Request):
 
     serialized = [storage.serialize_object(obj) for obj in objects]
     return {
-        "bucket": project_id,
         "project": project_id,
         "prefix": prefix,
         "recursive": recursive,
@@ -73,7 +71,7 @@ def list_project_objects(project_id: str, request: Request):
     }
 
 
-@router.put("/projects/{project_id}/objects/{key:path}")
+@router.put("/{project_id}/objects/{key:path}")
 async def put_project_object(project_id: str, key: str, request: Request):
     if not key:
         return _error("object key is required", 400)
@@ -95,7 +93,6 @@ async def put_project_object(project_id: str, key: str, request: Request):
     return JSONResponse(
         status_code=201,
         content={
-            "bucket": project_id,
             "project": project_id,
             "key": info.key,
             "etag": info.etag,
@@ -105,7 +102,7 @@ async def put_project_object(project_id: str, key: str, request: Request):
     )
 
 
-@router.get("/projects/{project_id}/objects/{key:path}")
+@router.get("/{project_id}/objects/{key:path}")
 def get_project_object(project_id: str, key: str):
     if not key:
         return _error("object key is required", 400)
@@ -135,7 +132,7 @@ def get_project_object(project_id: str, key: str):
     )
 
 
-@router.delete("/projects/{project_id}/objects/{key:path}")
+@router.delete("/{project_id}/objects/{key:path}")
 def delete_project_object(project_id: str, key: str):
     if not key:
         return _error("object key is required", 400)
@@ -147,10 +144,10 @@ def delete_project_object(project_id: str, key: str):
         return _error(str(exc), 404)
     except OSError as exc:
         return _error(str(exc), 502)
-    return {"bucket": project_id, "project": project_id, "key": key, "status": "deleted"}
+    return {"project": project_id, "key": key, "status": "deleted"}
 
 
-@router.get("/projects/{project_id}/meta/{key:path}")
+@router.get("/{project_id}/meta/{key:path}")
 def get_project_object_meta(project_id: str, key: str):
     if not key:
         return _error("object key is required", 400)

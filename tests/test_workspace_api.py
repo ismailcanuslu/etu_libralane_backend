@@ -18,23 +18,23 @@ class WorkspaceApiTests(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_project_and_object_roundtrip(self) -> None:
-        create = self.client.post("/workspace/projects/demo-project")
+        create = self.client.post("/files/demo-project")
         self.assertEqual(create.status_code, 201)
 
         put = self.client.put(
-            "/workspace/projects/demo-project/objects/src/top.v",
+            "/files/demo-project/objects/src/top.v",
             content=b"module top(); endmodule",
             headers={"Content-Type": "text/plain"},
         )
         self.assertEqual(put.status_code, 201)
 
-        listing = self.client.get("/workspace/projects/demo-project/objects")
+        listing = self.client.get("/files/demo-project/objects")
         self.assertEqual(listing.status_code, 200)
         payload = listing.json()
         self.assertEqual(payload["count"], 1)
         self.assertEqual(payload["objects"][0]["key"], "src/top.v")
 
-        download = self.client.get("/workspace/projects/demo-project/objects/src/top.v")
+        download = self.client.get("/files/demo-project/objects/src/top.v")
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download.content, b"module top(); endmodule")
 

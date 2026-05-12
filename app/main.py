@@ -8,7 +8,7 @@ from app.routes.ai import router as ai_router
 from app.routes.jobs import router as jobs_router
 from app.routes.run import router as run_router
 from app.routes.tools import router as tools_router
-from app.routes.workspace import router as workspace_router
+from app.routes.files import router as files_router
 
 
 @asynccontextmanager
@@ -30,7 +30,7 @@ app.include_router(tools_router)
 app.include_router(run_router)
 app.include_router(jobs_router)
 app.include_router(ai_router)
-app.include_router(workspace_router)
+app.include_router(files_router)
 
 
 @app.get("/")

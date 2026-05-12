@@ -12,8 +12,8 @@ Kalıcı proje dosyaları `WORKSPACE_ROOT` altında tutulur (varsayılan `/works
 docker compose up --build
 ```
 
-Gateway üzerinden workspace listesi:
+Workspace listesi:
 
 ```bash
-curl http://127.0.0.1:8000/workspace/projects
+curl http://127.0.0.1:8001/files
 ```
