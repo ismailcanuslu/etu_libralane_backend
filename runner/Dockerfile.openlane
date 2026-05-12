@@ -1,6 +1,7 @@
 # librelane/runner:openlane
-# OpenLane2 tabanli runner; ENABLE_OPENLANE_TOOLS=true iken backend bu imaji kullanir.
-FROM ghcr.io/efabless/openlane2:latest
+# OpenLane 1 birlesik imaji (Docker Hub efabless/openlane).
+# Hub ornegi amd64; ARM host'ta build/pull sirasinda --platform=linux/amd64 kullanin.
+FROM efabless/openlane:ci2504-dev-amd64
 
 WORKDIR /work
 CMD ["bash"]

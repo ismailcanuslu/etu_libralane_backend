@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     jobs_artifacts_prefix: str = "_jobs"
 
     runner_image_basic: str = "librelane/runner:basic"
-    runner_image_openlane: str = "ghcr.io/efabless/openlane2:latest"
+    runner_image_openlane: str = "efabless/openlane:ci2504-dev-amd64"
     runner_network: str = "librelane-network"
     runner_timeout_seconds: int = 0
     # Eşzamanlı en fazla kaç job çalışabilir; aşan job'lar QUEUED kalır.
@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     ollama_host_start_command: str = ""
     ollama_ready_timeout_seconds: int = 60
     enable_openlane_tools: bool = True
+    openlane_pdk_host_path: str = ""
+    openlane_pdk_mount_path: str = "/openlane/pdk"
 
 
 @lru_cache(maxsize=1)

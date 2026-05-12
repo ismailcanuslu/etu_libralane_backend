@@ -50,16 +50,20 @@ def create_container(
     *,
     env: Optional[dict] = None,
     network: Optional[str] = None,
+    extra_volumes: Optional[dict] = None,
 ):
     settings = get_settings()
     _ensure_image(image)
     cli = _client()
+    volumes = {host_workdir: {"bind": settings.jobs_workdir_in_runner, "mode": "rw"}}
+    if extra_volumes:
+        volumes.update(extra_volumes)
     container = cli.containers.create(
         image=image,
         command=cmd,
         working_dir=settings.jobs_workdir_in_runner,
         environment=env or {},
-        volumes={host_workdir: {"bind": settings.jobs_workdir_in_runner, "mode": "rw"}},
+        volumes=volumes,
         network=network or settings.runner_network,
         detach=True,
         tty=False,

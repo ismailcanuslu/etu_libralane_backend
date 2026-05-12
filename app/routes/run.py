@@ -1,5 +1,7 @@
 import json
 
+from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
@@ -7,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.tool_runner import cancel_job, schedule_job
-from app.tools_catalog import get_tool
+from app.tools_catalog import build_tool_command, get_tool
 
 router = APIRouter(prefix="/run", tags=["run"])
 
@@ -15,6 +17,8 @@ router = APIRouter(prefix="/run", tags=["run"])
 class RunRequest(BaseModel):
     project_id: str = Field(min_length=1, max_length=128)
     action: str = Field(min_length=1, max_length=64)
+    design_name: Optional[str] = Field(default=None, max_length=128)
+    args: Optional[List[str]] = None
 
 
 @router.post("")
@@ -25,11 +29,20 @@ def start_run(req: RunRequest):
     if not spec.enabled:
         raise HTTPException(status_code=400, detail=f"action '{req.action}' is not enabled in this build")
 
+    design_name = req.design_name.strip() if req.design_name else None
+    if spec.kind == "flow" and not design_name:
+        design_name = req.project_id
+
+    try:
+        command = build_tool_command(spec, design_name=design_name, extra_args=req.args)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     job = jobs_repo.create_job(
         project_id=req.project_id,
         action=spec.id,
         image=spec.image,
-        command=json.dumps(spec.cmd),
+        command=json.dumps(command),
     )
 
     schedule_job(job.id)

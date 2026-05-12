@@ -16,6 +16,7 @@
 #
 # Runner imajları (job başına ephemeral container):
 #   docker compose --profile build-runner build
+# OpenLane1 runner amd64 imajı; ARM host'ta pull/build sırasında --platform=linux/amd64 kullanın.
 
 services:
   ollama:
@@ -49,11 +50,13 @@ services:
       JOBS_HOST_DIR: /var/lib/librelane/jobs
       JOBS_ARTIFACTS_PREFIX: _jobs
       RUNNER_IMAGE_BASIC: ${RUNNER_IMAGE_BASIC:-librelane/runner:basic}
-      RUNNER_IMAGE_OPENLANE: ${RUNNER_IMAGE_OPENLANE:-librelane/runner:openlane}
+      RUNNER_IMAGE_OPENLANE: ${RUNNER_IMAGE_OPENLANE:-efabless/openlane:ci2504-dev-amd64}
       RUNNER_NETWORK: librelane-network
       RUNNER_TIMEOUT_SECONDS: ${RUNNER_TIMEOUT_SECONDS:-0}
       MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-4}
       ENABLE_OPENLANE_TOOLS: ${ENABLE_OPENLANE_TOOLS:-true}
+      OPENLANE_PDK_HOST_PATH: ${OPENLANE_PDK_HOST_PATH:-}
+      OPENLANE_PDK_MOUNT_PATH: ${OPENLANE_PDK_MOUNT_PATH:-/openlane/pdk}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:26b}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}

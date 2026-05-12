@@ -17,6 +17,10 @@ def get_tools():
                 "group": t.group,
                 "badge": t.badge,
                 "enabled": t.enabled,
+                "kind": t.kind,
+                "requires_verilog": t.requires_verilog,
+                "requires_config": t.requires_config,
+                "requires_pdk": t.requires_pdk,
             }
             for t in list_tools()
         ]

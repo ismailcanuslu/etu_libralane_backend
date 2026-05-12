@@ -11,6 +11,7 @@ Akış (her job için):
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 from datetime import datetime, timezone
@@ -28,7 +29,7 @@ from app.services.runner import (
     stream_container,
     wait_container,
 )
-from app.tools_catalog import get_tool
+from app.tools_catalog import ToolSpec, get_tool
 
 
 _settings = get_settings()
@@ -57,6 +58,47 @@ def _workspace_dir(job_id: str) -> str:
 
 def _log_path(job_id: str) -> str:
     return os.path.join(_job_root(job_id), "job.log")
+
+
+def _job_command(job, spec: ToolSpec) -> list[str]:
+    try:
+        parsed = json.loads(job.command)
+        if isinstance(parsed, list) and parsed:
+            return [str(part) for part in parsed]
+    except json.JSONDecodeError:
+        pass
+    return list(spec.cmd)
+
+
+def _needs_workspace_files(spec: ToolSpec) -> bool:
+    return spec.kind == "flow" or spec.requires_verilog or spec.requires_config
+
+
+def _has_config_file(paths: list[str]) -> bool:
+    return any(
+        path.endswith("config.json")
+        or path.endswith("config.tcl")
+        or path.split("/")[-1] in {"config.json", "config.tcl"}
+        for path in paths
+    )
+
+
+def _runner_env(spec: ToolSpec) -> dict[str, str]:
+    env: dict[str, str] = {}
+    if spec.requires_pdk and _settings.openlane_pdk_host_path:
+        env["PDK_ROOT"] = _settings.openlane_pdk_mount_path
+    return env
+
+
+def _runner_extra_volumes(spec: ToolSpec) -> dict:
+    if not spec.requires_pdk or not _settings.openlane_pdk_host_path:
+        return {}
+    return {
+        _settings.openlane_pdk_host_path: {
+            "bind": _settings.openlane_pdk_mount_path,
+            "mode": "ro",
+        }
+    }
 
 
 async def execute_job(job_id: str) -> None:
@@ -112,16 +154,24 @@ async def execute_job(job_id: str) -> None:
                 await broker.close(job_id)
                 return
 
-            if not downloaded:
+            if not downloaded and _needs_workspace_files(spec):
                 message = "Proje workspace'inde kopyalanacak dosya yok."
                 jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
                 await broker.publish(job_id, "error", {"message": message})
                 await broker.close(job_id)
                 return
 
-            has_verilog = any(path.endswith(".v") for path in downloaded)
-            if not has_verilog:
-                message = "Proje workspace'inde .v dosyası bulunamadı."
+            if spec.requires_verilog:
+                has_verilog = any(path.endswith(".v") for path in downloaded)
+                if not has_verilog:
+                    message = "Proje workspace'inde .v dosyası bulunamadı."
+                    jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
+                    await broker.publish(job_id, "error", {"message": message})
+                    await broker.close(job_id)
+                    return
+
+            if spec.requires_config and not _has_config_file(downloaded):
+                message = "Proje workspace'inde config.json veya config.tcl bulunamadı."
                 jobs_repo.mark_finished(job_id, status=JobStatus.FAILED, error_message=message)
                 await broker.publish(job_id, "error", {"message": message})
                 await broker.close(job_id)
@@ -133,12 +183,16 @@ async def execute_job(job_id: str) -> None:
                 {"status": "running", "message": f"{len(downloaded)} dosya hazırlandı"},
             )
 
+            command = _job_command(job, spec)
+
             # Container oluştur
             try:
                 container = create_container(
                     image=spec.image,
-                    cmd=list(spec.cmd),
+                    cmd=command,
                     host_workdir=workdir,
+                    env=_runner_env(spec),
+                    extra_volumes=_runner_extra_volumes(spec),
                 )
             except Exception as e:  # noqa: BLE001
                 jobs_repo.mark_finished(
@@ -157,7 +211,7 @@ async def execute_job(job_id: str) -> None:
             with open(log_path, "w", encoding="utf-8", buffering=1) as log_file:
                 log_file.write(
                     f"# job_id={job_id}\n# action={job.action}\n# image={job.image}\n"
-                    f"# cmd={job.command}\n# started_at={_now_iso()}\n\n"
+                    f"# cmd={command}\n# started_at={_now_iso()}\n\n"
                 )
                 try:
                     async for line in stream_container(container):

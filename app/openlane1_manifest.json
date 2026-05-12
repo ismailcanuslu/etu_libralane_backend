@@ -1,0 +1,150 @@
+{
+  "image": "efabless/openlane:ci2504-dev-amd64",
+  "platform": "linux/amd64",
+  "tools": [
+    {
+      "hub_key": "klayout",
+      "label": "KLayout",
+      "resolved_bins": ["klayout"],
+      "probe_argv": "-v",
+      "smoke_argv": "-v",
+      "enabled": true,
+      "notes": "Docker Hub build hedefi klayout."
+    },
+    {
+      "hub_key": "replace",
+      "label": "RePlAce",
+      "resolved_bins": ["replace"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "Global placement araci."
+    },
+    {
+      "hub_key": "opendp",
+      "label": "OpenDP",
+      "resolved_bins": ["opendp"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "Detailed placement araci."
+    },
+    {
+      "hub_key": "route",
+      "label": "Route",
+      "resolved_bins": ["route"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "OpenLane route build hedefi."
+    },
+    {
+      "hub_key": "cugr",
+      "label": "CUGR",
+      "resolved_bins": ["cugr"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "CUGR routing araci."
+    },
+    {
+      "hub_key": "drcu",
+      "label": "DRCU",
+      "resolved_bins": ["drcu"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "DRC yardimci araci."
+    },
+    {
+      "hub_key": "opensta",
+      "label": "OpenSTA",
+      "resolved_bins": ["sta", "opensta"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "Hub hedefi opensta; imajda sta veya opensta olabilir."
+    },
+    {
+      "hub_key": "yosys",
+      "label": "Yosys",
+      "resolved_bins": ["yosys"],
+      "probe_argv": "-V",
+      "smoke_argv": "-V",
+      "enabled": true,
+      "notes": "Sentez araci."
+    },
+    {
+      "hub_key": "antmicro_yosys",
+      "label": "Antmicro Yosys",
+      "resolved_bins": ["yosys"],
+      "probe_argv": "-V",
+      "smoke_argv": "-V",
+      "enabled": true,
+      "notes": "Antmicro Yosys dagitimi; binary adi yosys olabilir."
+    },
+    {
+      "hub_key": "magic",
+      "label": "Magic",
+      "resolved_bins": ["magic"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "Layout ve DRC araci."
+    },
+    {
+      "hub_key": "openroad_app",
+      "label": "OpenROAD",
+      "resolved_bins": ["openroad", "openroad_app"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "Hub hedefi openroad_app; PATH uzerinde openroad olabilir."
+    },
+    {
+      "hub_key": "padring",
+      "label": "Padring",
+      "resolved_bins": ["padring"],
+      "probe_argv": "-h",
+      "smoke_argv": "-h",
+      "enabled": true,
+      "notes": "Pad ring araci."
+    },
+    {
+      "hub_key": "netgen",
+      "label": "Netgen",
+      "resolved_bins": ["netgen"],
+      "probe_argv": "-version",
+      "smoke_argv": "-version",
+      "enabled": true,
+      "notes": "LVS araci."
+    },
+    {
+      "hub_key": "vlogtoverilog",
+      "label": "vlogtoverilog",
+      "resolved_bins": ["vlogtoverilog"],
+      "probe_argv": "-h",
+      "smoke_argv": "-h",
+      "enabled": true,
+      "notes": "Verilog donusturme araci."
+    },
+    {
+      "hub_key": "openphysyn",
+      "label": "OpenPhysyn",
+      "resolved_bins": ["openphysyn"],
+      "probe_argv": "-h",
+      "smoke_argv": "-h",
+      "enabled": true,
+      "notes": "Fiziksel sentez araci."
+    },
+    {
+      "hub_key": "cvc",
+      "label": "CVC",
+      "resolved_bins": ["cvc"],
+      "probe_argv": "-h",
+      "smoke_argv": "-h",
+      "enabled": true,
+      "notes": "CVC dogrulama araci."
+    }
+  ]
+}

@@ -77,3 +77,54 @@ def ensure_ollama_running() -> None:
         _start_ollama_container(container_name)
 
     _ollama_ready(float(settings.ollama_ready_timeout_seconds))
+
+
+def get_ollama_status() -> dict[str, object]:
+    settings = get_settings()
+    model = settings.ollama_model
+    base_url = settings.ollama_base_url.rstrip("/")
+
+    if settings.ollama_auto_start:
+        ensure_ollama_running()
+
+    try:
+        with httpx.Client(timeout=5) as client:
+            response = client.get(_tags_url())
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPError as exc:
+        return {
+            "ready": False,
+            "model": model,
+            "message": f"Ollama erisilemedi: {exc}",
+            "ollama_base_url": base_url,
+        }
+
+    models: list[str] = []
+    for item in payload.get("models", []):
+        if isinstance(item, dict):
+            name = item.get("name")
+            if isinstance(name, str) and name:
+                models.append(name)
+
+    model_ready = any(
+        name == model or name.startswith(f"{model}:") or model.startswith(f"{name}:")
+        for name in models
+    )
+    if model_ready:
+        message = f"Ollama hazir — {model}"
+        ready = True
+    elif models:
+        message = f"Ollama acik ancak {model} modeli bulunamadi."
+        ready = False
+    else:
+        message = "Ollama acik ancak yuklu model listesi bos."
+        ready = False
+
+    return {
+        "ready": ready,
+        "model": model,
+        "message": message,
+        "ollama_base_url": base_url,
+        "models": models,
+    }

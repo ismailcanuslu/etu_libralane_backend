@@ -4,6 +4,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.services.ai_chat_hub import hub
 from app.services.ai_service import analyze_log, chat_reply
+from app.services.ollama_runtime import get_ollama_status
 
 router = APIRouter(prefix="/ai")
 
@@ -20,6 +21,11 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     history: list[ChatMessage] = Field(default_factory=list)
+
+
+@router.get("/status")
+def ai_status():
+    return get_ollama_status()
 
 
 @router.post("/analyze")

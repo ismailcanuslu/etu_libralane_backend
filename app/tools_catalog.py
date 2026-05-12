@@ -1,11 +1,12 @@
 import shlex
 from dataclasses import dataclass, replace
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from app.core.config import get_settings
-from app.openlane_steps import CLASSIC_OPENLANE_STEP_IDS
+from app.openlane1_manifest import load_openlane1_manifest
 
 _settings = get_settings()
+ToolKind = Literal["binary", "probe", "flow"]
 
 
 @dataclass(frozen=True)
@@ -18,53 +19,109 @@ class ToolSpec:
     group: str = "tools"
     badge: str | None = None
     enabled: bool = True
+    kind: ToolKind = "binary"
+    requires_verilog: bool = False
+    requires_config: bool = False
+    requires_pdk: bool = False
 
 
 _BASIC = _settings.runner_image_basic
 _OPENLANE = _settings.runner_image_openlane
 
 
-def _openlane_shell(script: str) -> List[str]:
+def _shell(script: str) -> List[str]:
     return ["sh", "-lc", script]
 
 
-def _openlane_preflight() -> str:
+def _resolve_binary_script(candidates: list[str], argv: str) -> str:
+    quoted_candidates = " ".join(shlex.quote(name) for name in candidates)
     return (
         "set -e; "
-        "command -v openlane >/dev/null 2>&1 || { echo 'openlane CLI bulunamadi'; exit 2; }; "
-        "test -f config.json || { echo 'config.json gerekli'; exit 2; }; "
+        f"candidates={quoted_candidates}; "
+        "resolved=''; "
+        "for name in $candidates; do "
+        'if path=$(command -v "$name" 2>/dev/null); then resolved="$path"; break; fi; '
+        "done; "
+        '[ -n "$resolved" ] || { echo "binary bulunamadi"; exit 2; }; '
+        f'"$resolved" {shlex.quote(argv)}'
     )
 
 
-def _openlane_only_cmd(step_id: str) -> List[str]:
-    return _openlane_shell(f"{_openlane_preflight()}openlane --only {shlex.quote(step_id)} config.json")
+def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
+    args = ""
+    if extra_args:
+        args = " " + " ".join(shlex.quote(value) for value in extra_args)
+    return (
+        "set -e; "
+        "if [ -f ./flow.tcl ]; then FLOW=./flow.tcl; "
+        "elif [ -f flow.tcl ]; then FLOW=flow.tcl; "
+        "else echo 'flow.tcl gerekli'; exit 2; fi; "
+        f'./"$FLOW" -design {shlex.quote(design_name)}{args}'
+    )
 
 
-def _openlane_full_cmd() -> List[str]:
-    return _openlane_shell(f"{_openlane_preflight()}openlane config.json")
+def build_tool_command(
+    spec: ToolSpec,
+    *,
+    design_name: str | None = None,
+    extra_args: list[str] | None = None,
+) -> List[str]:
+    if spec.kind != "flow":
+        return list(spec.cmd)
+    if not design_name:
+        raise ValueError("design_name required for flow tools")
+    return _shell(_flow_script(design_name, extra_args))
 
 
-def _openlane_step_action_id(step_id: str) -> str:
-    return "openlane-" + step_id.replace(".", "-").lower()
-
-
-def _openlane_step_label(step_id: str) -> str:
-    return step_id.replace(".", " · ")
-
-
-def _build_openlane_step_catalog() -> Dict[str, ToolSpec]:
+def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
     catalog: Dict[str, ToolSpec] = {}
-    for step_id in CLASSIC_OPENLANE_STEP_IDS:
-        action_id = _openlane_step_action_id(step_id)
-        catalog[action_id] = ToolSpec(
-            id=action_id,
-            label=_openlane_step_label(step_id),
-            description=f"OpenLane Classic: yalnızca {step_id} adımı.",
+    manifest = load_openlane1_manifest()
+    for entry in manifest["tools"]:
+        hub_key = entry["hub_key"]
+        candidates = entry["resolved_bins"]
+        notes = entry.get("notes") or ""
+        manifest_enabled = bool(entry.get("enabled", True))
+        base_enabled = manifest_enabled and bool(candidates)
+
+        smoke_id = f"openlane1-{hub_key}"
+        catalog[smoke_id] = ToolSpec(
+            id=smoke_id,
+            label=entry.get("label") or hub_key,
+            description=notes or f"OpenLane1 {hub_key} smoke testi.",
             image=_OPENLANE,
-            cmd=_openlane_only_cmd(step_id),
-            group="openlane",
-            enabled=True,
+            cmd=_shell(_resolve_binary_script(candidates, entry["smoke_argv"])),
+            group="openlane1",
+            enabled=base_enabled,
+            kind="binary",
         )
+
+        probe_id = f"openlane1-{hub_key}-probe"
+        catalog[probe_id] = ToolSpec(
+            id=probe_id,
+            label=f"{entry.get('label') or hub_key} Probe",
+            description=f"PATH uzerinde {hub_key} binary varligini dogrular.",
+            image=_OPENLANE,
+            cmd=_shell(_resolve_binary_script(candidates, entry["probe_argv"])),
+            group="openlane1",
+            badge="Probe",
+            enabled=base_enabled,
+            kind="probe",
+        )
+
+    catalog["openlane1-flow"] = ToolSpec(
+        id="openlane1-flow",
+        label="OpenLane1 Flow",
+        description="OpenLane1 flow.tcl ile tam tasarim akisi (design adi ve flow.tcl gerekir).",
+        image=_OPENLANE,
+        cmd=[],
+        group="build",
+        badge="PnR",
+        enabled=True,
+        kind="flow",
+        requires_verilog=True,
+        requires_config=True,
+        requires_pdk=True,
+    )
     return catalog
 
 
@@ -77,6 +134,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         cmd=["sh", "-lc", "set -e; ls *.v >/dev/null 2>&1 || { echo 'no .v files'; exit 1; }; iverilog -o /tmp/smoke.out *.v && echo 'SMOKE OK'"],
         group="tools",
         badge="Hızlı",
+        requires_verilog=True,
     ),
     "lint": ToolSpec(
         id="lint",
@@ -85,6 +143,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         image=_BASIC,
         cmd=["sh", "-lc", "verilator --lint-only --Wall *.v"],
         group="tools",
+        requires_verilog=True,
     ),
     "simulation": ToolSpec(
         id="simulation",
@@ -93,6 +152,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         image=_BASIC,
         cmd=["sh", "-lc", "set -e; iverilog -o sim *.v tb_*.v && vvp sim"],
         group="build",
+        requires_verilog=True,
     ),
     "synthesis": ToolSpec(
         id="synthesis",
@@ -101,6 +161,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         image=_BASIC,
         cmd=["sh", "-lc", "yosys -p 'read_verilog *.v; synth; write_verilog netlist.v'"],
         group="build",
+        requires_verilog=True,
     ),
     "verification": ToolSpec(
         id="verification",
@@ -109,6 +170,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         image=_BASIC,
         cmd=["sh", "-lc", "set -e; verilator --lint-only --Wall *.v && iverilog -o /tmp/v.out *.v && echo 'VERIFY OK'"],
         group="build",
+        requires_verilog=True,
     ),
     "formal": ToolSpec(
         id="formal",
@@ -122,73 +184,10 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         ],
         group="tools",
         enabled=False,
-    ),
-    "openlane-classic": ToolSpec(
-        id="openlane-classic",
-        label="OpenLane Classic",
-        description="OpenLane2 tam Classic akışı (config.json gerekir).",
-        image=_OPENLANE,
-        cmd=_openlane_full_cmd(),
-        group="build",
-        badge="PnR",
-        enabled=True,
-    ),
-    "timing": ToolSpec(
-        id="timing",
-        label="Timing Analizi",
-        description="OpenLane STA adımı (OpenROAD.STAPostPNR).",
-        image=_OPENLANE,
-        cmd=_openlane_only_cmd("OpenROAD.STAPostPNR"),
-        group="analysis",
-        enabled=True,
-    ),
-    "power": ToolSpec(
-        id="power",
-        label="Güç Analizi",
-        description="OpenLane IR drop raporu adımı.",
-        image=_OPENLANE,
-        cmd=_openlane_only_cmd("OpenROAD.IRDropReport"),
-        group="analysis",
-        enabled=True,
-    ),
-    "drc": ToolSpec(
-        id="drc",
-        label="DRC Kontrolü",
-        description="OpenLane Magic DRC adımı.",
-        image=_OPENLANE,
-        cmd=_openlane_only_cmd("Magic.DRC"),
-        group="analysis",
-        enabled=True,
-    ),
-    "lvs": ToolSpec(
-        id="lvs",
-        label="LVS Kontrolü",
-        description="OpenLane LVS adımı.",
-        image=_OPENLANE,
-        cmd=_openlane_only_cmd("Checker.LVS"),
-        group="analysis",
-        enabled=True,
-    ),
-    "pnr": ToolSpec(
-        id="pnr",
-        label="Fiziksel Tasarım",
-        description="OpenLane place & route akışı (config.json gerekir).",
-        image=_OPENLANE,
-        cmd=_openlane_full_cmd(),
-        group="build",
-        enabled=True,
-    ),
-    "gdsii": ToolSpec(
-        id="gdsii",
-        label="GDSII Dışa Aktarma",
-        description="OpenLane GDSII çıktı adımı.",
-        image=_OPENLANE,
-        cmd=_openlane_only_cmd("Magic.StreamOut"),
-        group="build",
-        enabled=True,
+        requires_verilog=True,
     ),
 }
-TOOL_CATALOG.update(_build_openlane_step_catalog())
+TOOL_CATALOG.update(_build_openlane1_catalog())
 
 
 def _effective_spec(spec: ToolSpec) -> ToolSpec:
