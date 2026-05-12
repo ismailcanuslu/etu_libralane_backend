@@ -5,6 +5,7 @@ from typing import Iterable, Mapping
 import httpx
 
 from app.core.config import get_settings
+from app.services.ollama_runtime import ensure_ollama_running
 
 _settings = get_settings()
 _SYSTEM_PROMPT = (
@@ -14,6 +15,7 @@ _SYSTEM_PROMPT = (
 
 
 def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> str:
+    ensure_ollama_running()
     payload = {
         "model": _settings.ollama_model,
         "messages": messages,

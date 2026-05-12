@@ -1,6 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket
 from pydantic import BaseModel, Field
+from starlette.websockets import WebSocketDisconnect
 
+from app.services.ai_chat_hub import hub
 from app.services.ai_service import analyze_log, chat_reply
 
 router = APIRouter(prefix="/ai")
@@ -33,3 +35,20 @@ def chat(request: ChatRequest):
         [{"role": item.role, "content": item.content} for item in request.history],
     )
     return {"reply": result}
+
+
+@router.websocket("/chat/ws")
+async def chat_websocket(websocket: WebSocket):
+    await hub.connect(websocket)
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            if not isinstance(payload, dict):
+                await hub.handle_message(
+                    websocket,
+                    {"type": "error", "message": "invalid payload"},
+                )
+                continue
+            await hub.handle_message(websocket, payload)
+    except WebSocketDisconnect:
+        await hub.disconnect(websocket)

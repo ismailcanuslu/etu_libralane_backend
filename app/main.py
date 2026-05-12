@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Chip AI Tool Backend", lifespan=lifespan)
+app = FastAPI(title="Chip AI Tool Backend", lifespan=lifespan, redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,

@@ -17,7 +17,7 @@ class RunRequest(BaseModel):
     action: str = Field(min_length=1, max_length=64)
 
 
-@router.post("/")
+@router.post("")
 def start_run(req: RunRequest):
     spec = get_tool(req.action)
     if spec is None:

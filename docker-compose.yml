@@ -4,14 +4,32 @@
 #   docker network create librelane-network
 #   sudo mkdir -p /var/lib/librelane/jobs
 #
-# Host üzerinde native Ollama (ör. gemma4:26b) için backend konteynerinden erişim:
-#   OLLAMA_BASE_URL=http://host.docker.internal:11434
-#   (Linux: extra_hosts aşağıda tanımlı.)
+# Ollama (host'ta native kurulu):
+#   Backend `OLLAMA_BASE_URL=http://host.docker.internal:11434` ile host Ollama'ya gider.
+#   Servis kapalıysa `OLLAMA_HOST_START_COMMAND` host PID 1 namespace'inde çalıştırılır;
+#   bunun için aşağıdaki `pid: host`, `privileged` ve dbus mount gerekir.
+#   Host'ta: systemctl enable --now ollama ve `ollama pull <model>`.
+#
+# İsteğe bağlı compose içi Ollama:
+#   docker compose --profile bundled-ollama up -d
+#   ve OLLAMA_BASE_URL=http://ollama:11434 verin.
 #
 # Runner imajları (job başına ephemeral container):
 #   docker compose --profile build-runner build
 
 services:
+  ollama:
+    profiles: ["bundled-ollama"]
+    image: ollama/ollama:latest
+    container_name: librelane-ollama
+    restart: unless-stopped
+    networks:
+      - librelane-network
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
   backend:
     build:
       context: .
@@ -19,6 +37,8 @@ services:
     image: librelane/backend:latest
     container_name: librelane-backend
     restart: unless-stopped
+    pid: host
+    privileged: true
     networks:
       - librelane-network
     ports:
@@ -37,8 +57,13 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:26b}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
+      OLLAMA_AUTO_START: ${OLLAMA_AUTO_START:-true}
+      OLLAMA_HOST_START_COMMAND: ${OLLAMA_HOST_START_COMMAND:-nsenter -t 1 -m -u -n -i systemctl start ollama}
+      OLLAMA_CONTAINER_NAME: ${OLLAMA_CONTAINER_NAME:-}
+      OLLAMA_READY_TIMEOUT_SECONDS: ${OLLAMA_READY_TIMEOUT_SECONDS:-60}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
       - ./workspace:/workspace
       - /var/lib/librelane/jobs:/var/lib/librelane/jobs
       - librelane-data:/data
@@ -67,6 +92,7 @@ services:
 
 volumes:
   librelane-data:
+  ollama-data:
 
 networks:
   librelane-network:

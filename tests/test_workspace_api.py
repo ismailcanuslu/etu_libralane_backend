@@ -17,6 +17,10 @@ class WorkspaceApiTests(unittest.TestCase):
         get_settings.cache_clear()
         self.client = TestClient(app)
 
+    def test_create_project_via_files_post_body(self) -> None:
+        create = self.client.post("/files", json={"name": "demo-project"})
+        self.assertEqual(create.status_code, 201)
+
     def test_project_and_object_roundtrip(self) -> None:
         create = self.client.post("/files/demo-project")
         self.assertEqual(create.status_code, 201)

@@ -27,7 +27,7 @@ def _serialize(job) -> dict:
     }
 
 
-@router.get("/")
+@router.get("")
 def list_jobs(
     project_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),

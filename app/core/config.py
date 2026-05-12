@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "gemma4:26b"
     ollama_timeout_seconds: int = 300
+    ollama_auto_start: bool = True
+    ollama_container_name: str = ""
+    ollama_host_start_command: str = ""
+    ollama_ready_timeout_seconds: int = 60
     enable_openlane_tools: bool = False
 
 

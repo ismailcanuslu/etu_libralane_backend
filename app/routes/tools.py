@@ -5,7 +5,7 @@ from app.tools_catalog import list_tools
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-@router.get("/")
+@router.get("")
 def get_tools():
     return {
         "tools": [
