@@ -4,13 +4,9 @@
 #   docker network create librelane-network
 #   sudo mkdir -p /var/lib/librelane/jobs
 #
-# Ollama yalnizca host'ta calisir (compose icinde ollama servisi yok).
-#   Host: ollama pull gemma4:26b
-#   Ollama'nin container'dan erisilebilmesi icin host'ta dinleme adresi acik olmali
-#   (or. OLLAMA_HOST=0.0.0.0:11434 veya systemd override).
-#   Backend host aginda calisir; Ollama host'ta 127.0.0.1:11434 ise OLLAMA_BASE_URL ayni adres olmali.
-#   OLLAMA_AUTO_START=true iken backend host'ta `ollama run <OLLAMA_MODEL>` komutunu
-#   nsenter ile arka planda calistirir.
+# Ollama ayarlari backend veri dizininde ollama_prefs.json dosyasinda tutulur
+# (varsayilan: DB_PATH ile ayni klasor, or. /data/ollama_prefs.json).
+# UI: sol panel > Ayarlar > Ollama ayarlari (editor sekmesi).
 #
 # Runner imaji (job basina ephemeral container):
 #   docker pull efabless/openlane:ci2504-dev-amd64
@@ -38,13 +34,6 @@ services:
       ENABLE_OPENLANE_TOOLS: "true"
       OPENLANE_PDK_HOST_PATH: ""
       OPENLANE_PDK_MOUNT_PATH: /openlane/pdk
-      OLLAMA_BASE_URL: http://127.0.0.1:11434
-      OLLAMA_MODEL: gemma4:26b
-      OLLAMA_TIMEOUT_SECONDS: "300"
-      OLLAMA_AUTO_START: "true"
-      OLLAMA_HOST_START_COMMAND: ""
-      OLLAMA_CONTAINER_NAME: ""
-      OLLAMA_READY_TIMEOUT_SECONDS: "60"
       ENABLE_HOST_TERMINAL: "true"
       HOST_TERMINAL_USE_NSENTER: "true"
       HOST_TERMINAL_SHELL: /bin/bash

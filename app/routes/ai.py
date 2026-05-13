@@ -1,12 +1,16 @@
 import asyncio
+from typing import Any
 
-from fastapi import APIRouter, WebSocket
+import ollama
+from fastapi import APIRouter, HTTPException, Query, WebSocket
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
 from app.services.ai_chat_hub import hub
 from app.services.ai_service import analyze_log, chat_reply
-from app.services.ollama_runtime import get_ollama_status_async
+from app.services.chat_history_service import get_messages_for_project, save_project_history
+from app.services.ollama_config import OllamaPrefs, load_ollama_prefs, ollama_prefs_as_api_dict, save_ollama_prefs
+from app.services.ollama_runtime import get_ollama_status_async, reset_ollama_base_url_cache, resolve_ollama_base_url_sync
 
 router = APIRouter(prefix="/ai")
 
@@ -25,9 +29,103 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = Field(default_factory=list)
 
 
+class OllamaConfigPut(BaseModel):
+    base_url: str
+    model: str
+    timeout_seconds: int = Field(default=300, ge=10, le=7200)
+    auto_start: bool = True
+    container_name: str = ""
+    host_start_command: str = ""
+    ready_timeout_seconds: int = Field(default=60, ge=5, le=600)
+
+
+class ChatHistoryBody(BaseModel):
+    project_id: str = Field(min_length=1, max_length=512)
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _ollama_client() -> tuple[ollama.Client, OllamaPrefs]:
+    prefs = load_ollama_prefs()
+    base = resolve_ollama_base_url_sync(prefs) or prefs.base_url.rstrip("/")
+    timeout = min(max(prefs.timeout_seconds, 5), 600)
+    return ollama.Client(host=base, timeout=timeout), prefs
+
+
+def _ollama_list_models_sync() -> list[str]:
+    client, _prefs = _ollama_client()
+    lr = client.list()
+    raw = lr["models"] if isinstance(lr, dict) else getattr(lr, "models", []) or []
+    names: list[str] = []
+    for item in raw:
+        if isinstance(item, dict):
+            n = item.get("model") or item.get("name")
+        else:
+            n = getattr(item, "model", None) or getattr(item, "name", None)
+        if isinstance(n, str) and n.strip():
+            names.append(n.strip())
+    return names
+
+
+def _ollama_ps_sync() -> dict[str, Any]:
+    client, _prefs = _ollama_client()
+    pr = client.ps()
+    if isinstance(pr, dict):
+        return pr
+    return {"models": getattr(pr, "models", [])}
+
+
 @router.get("/status")
 async def ai_status():
     return await get_ollama_status_async()
+
+
+@router.get("/ollama/config")
+async def ollama_config_get():
+    return ollama_prefs_as_api_dict(load_ollama_prefs())
+
+
+@router.put("/ollama/config")
+async def ollama_config_put(body: OllamaConfigPut):
+    prefs = OllamaPrefs(
+        base_url=body.base_url.strip() or "http://127.0.0.1:11434",
+        model=body.model.strip() or "gemma4:26b",
+        timeout_seconds=body.timeout_seconds,
+        auto_start=body.auto_start,
+        container_name=body.container_name.strip(),
+        host_start_command=body.host_start_command.strip(),
+        ready_timeout_seconds=body.ready_timeout_seconds,
+    )
+    save_ollama_prefs(prefs)
+    reset_ollama_base_url_cache()
+    return ollama_prefs_as_api_dict(prefs)
+
+
+@router.get("/ollama/models")
+async def ollama_models_list():
+    try:
+        names = await asyncio.to_thread(_ollama_list_models_sync)
+        return {"models": names}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Ollama model listesi alinamadi: {exc}") from exc
+
+
+@router.get("/ollama/ps")
+async def ollama_ps():
+    try:
+        return await asyncio.to_thread(_ollama_ps_sync)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Ollama ps alinamadi: {exc}") from exc
+
+
+@router.get("/chat/history")
+async def chat_history_get(project_id: str = Query(..., min_length=1, max_length=512)):
+    return {"messages": get_messages_for_project(project_id)}
+
+
+@router.put("/chat/history")
+async def chat_history_put(body: ChatHistoryBody):
+    save_project_history(body.project_id, body.messages)
+    return {"ok": True}
 
 
 @router.post("/analyze")

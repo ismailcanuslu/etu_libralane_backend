@@ -9,14 +9,19 @@ import docker
 import httpx
 from docker.errors import APIError, NotFound
 
-from app.core.config import Settings, get_settings
+from app.services.ollama_config import OllamaPrefs, load_ollama_prefs
 
 _resolved_ollama_base_url: str | None = None
 
 
-def _candidate_ollama_base_urls(settings: Settings) -> list[str]:
+def reset_ollama_base_url_cache() -> None:
+    global _resolved_ollama_base_url
+    _resolved_ollama_base_url = None
+
+
+def _candidate_ollama_base_urls(ollama: OllamaPrefs) -> list[str]:
     urls: list[str] = []
-    primary = settings.ollama_base_url.rstrip("/")
+    primary = ollama.base_url.rstrip("/")
     if primary:
         urls.append(primary)
     for candidate in (
@@ -34,22 +39,22 @@ def _tags_url_for(base_url: str) -> str:
 
 
 def _tags_url() -> str:
-    settings = get_settings()
-    base = _resolved_ollama_base_url or settings.ollama_base_url.rstrip("/")
+    ollama = load_ollama_prefs()
+    base = _resolved_ollama_base_url or ollama.base_url.rstrip("/")
     return _tags_url_for(base)
 
 
-def build_ollama_host_start_command(settings: Settings | None = None) -> str:
+def build_ollama_host_start_command(ollama: OllamaPrefs | None = None) -> str:
     """Host'ta Ollama'yi baslatmak icin nsenter komutu.
 
-    Ozel OLLAMA_HOST_START_COMMAND verilmediyse `ollama run <model>` arka planda calisir.
+    `host_start_command` doluysa o komut; degilse `ollama run <model>` arka planda calisir.
     """
-    settings = settings or get_settings()
-    custom = settings.ollama_host_start_command.strip()
+    ollama = ollama or load_ollama_prefs()
+    custom = ollama.host_start_command.strip()
     if custom:
         return custom
 
-    model = shlex.quote(settings.ollama_model)
+    model = shlex.quote(ollama.model)
     return (
         "nsenter -t 1 -m -u -n -i -p -F -- sh -lc "
         f"'command -v ollama >/dev/null 2>&1 || exit 127; "
@@ -73,26 +78,26 @@ async def _probe_tags_async(client: httpx.AsyncClient, base_url: str) -> bool:
         return False
 
 
-def resolve_ollama_base_url_sync(settings: Settings | None = None) -> str | None:
+def resolve_ollama_base_url_sync(ollama: OllamaPrefs | None = None) -> str | None:
     global _resolved_ollama_base_url
-    settings = settings or get_settings()
+    ollama = ollama or load_ollama_prefs()
     if _resolved_ollama_base_url:
         return _resolved_ollama_base_url
     with httpx.Client(timeout=3) as client:
-        for base_url in _candidate_ollama_base_urls(settings):
+        for base_url in _candidate_ollama_base_urls(ollama):
             if _probe_tags_sync(client, base_url):
                 _resolved_ollama_base_url = base_url
                 return base_url
     return None
 
 
-async def resolve_ollama_base_url_async(settings: Settings | None = None) -> str | None:
+async def resolve_ollama_base_url_async(ollama: OllamaPrefs | None = None) -> str | None:
     global _resolved_ollama_base_url
-    settings = settings or get_settings()
+    ollama = ollama or load_ollama_prefs()
     if _resolved_ollama_base_url:
         return _resolved_ollama_base_url
     async with httpx.AsyncClient(timeout=3) as client:
-        for base_url in _candidate_ollama_base_urls(settings):
+        for base_url in _candidate_ollama_base_urls(ollama):
             if await _probe_tags_async(client, base_url):
                 _resolved_ollama_base_url = base_url
                 return base_url
@@ -100,20 +105,18 @@ async def resolve_ollama_base_url_async(settings: Settings | None = None) -> str
 
 
 def _ollama_ready_sync(timeout_seconds: float) -> bool:
-    settings = get_settings()
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        if resolve_ollama_base_url_sync(settings):
+        if resolve_ollama_base_url_sync(load_ollama_prefs()):
             return True
         time.sleep(1)
     return False
 
 
 async def _ollama_ready_async(timeout_seconds: float) -> bool:
-    settings = get_settings()
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        if await resolve_ollama_base_url_async(settings):
+        if await resolve_ollama_base_url_async(load_ollama_prefs()):
             return True
         await asyncio.sleep(1)
     return False
@@ -150,30 +153,30 @@ def _start_ollama_container(container_name: str) -> bool:
     return True
 
 
-def _kick_start_ollama(settings: Settings) -> None:
-    _start_host_ollama(build_ollama_host_start_command(settings))
-    container_name = settings.ollama_container_name.strip()
+def _kick_start_ollama(ollama: OllamaPrefs) -> None:
+    _start_host_ollama(build_ollama_host_start_command(ollama))
+    container_name = ollama.container_name.strip()
     if container_name:
         _start_ollama_container(container_name)
 
 
 def ensure_ollama_running() -> None:
     """Sohbet gibi uzun islemler icin Ollama hazir olana kadar bekler (senkron)."""
-    settings = get_settings()
+    ollama = load_ollama_prefs()
     if _ollama_ready_sync(2):
         return
-    if not settings.ollama_auto_start:
+    if not ollama.auto_start:
         return
 
-    _kick_start_ollama(settings)
-    _ollama_ready_sync(float(settings.ollama_ready_timeout_seconds))
+    _kick_start_ollama(ollama)
+    _ollama_ready_sync(float(ollama.ready_timeout_seconds))
 
 
 async def kick_start_ollama_async() -> None:
-    settings = get_settings()
-    if not settings.ollama_auto_start:
+    ollama = load_ollama_prefs()
+    if not ollama.auto_start:
         return
-    await asyncio.to_thread(_kick_start_ollama, settings)
+    await asyncio.to_thread(_kick_start_ollama, ollama)
 
 
 def _serialize_status_payload(
@@ -212,8 +215,8 @@ def _serialize_status_payload(
     }
 
 
-async def _fetch_tags_payload_async(settings: Settings) -> tuple[str | None, dict[str, object] | None, str | None]:
-    base_url = await resolve_ollama_base_url_async(settings)
+async def _fetch_tags_payload_async(ollama: OllamaPrefs) -> tuple[str | None, dict[str, object] | None, str | None]:
+    base_url = await resolve_ollama_base_url_async(ollama)
     if base_url is None:
         return None, None, None
     try:
@@ -227,16 +230,16 @@ async def _fetch_tags_payload_async(settings: Settings) -> tuple[str | None, dic
 
 
 async def get_ollama_status_async() -> dict[str, object]:
-    settings = get_settings()
-    model = settings.ollama_model
-    configured = settings.ollama_base_url.rstrip("/")
+    ollama = load_ollama_prefs()
+    model = ollama.model
+    configured = ollama.base_url.rstrip("/")
 
     if not await _ollama_ready_async(2):
-        if settings.ollama_auto_start:
+        if ollama.auto_start:
             await kick_start_ollama_async()
             await _ollama_ready_async(3)
 
-    base_url, payload, error = await _fetch_tags_payload_async(settings)
+    base_url, payload, error = await _fetch_tags_payload_async(ollama)
     if error is not None:
         return {
             "ready": False,
@@ -265,15 +268,15 @@ async def get_ollama_status_async() -> dict[str, object]:
 
 def get_ollama_status() -> dict[str, object]:
     """Senkron cagri noktalari icin kisa timeout ile durum okur."""
-    settings = get_settings()
-    model = settings.ollama_model
-    configured = settings.ollama_base_url.rstrip("/")
+    ollama = load_ollama_prefs()
+    model = ollama.model
+    configured = ollama.base_url.rstrip("/")
 
-    if not _ollama_ready_sync(2) and settings.ollama_auto_start:
-        _kick_start_ollama(settings)
+    if not _ollama_ready_sync(2) and ollama.auto_start:
+        _kick_start_ollama(ollama)
         _ollama_ready_sync(3)
 
-    base_url = resolve_ollama_base_url_sync(settings)
+    base_url = resolve_ollama_base_url_sync(ollama)
     if base_url is None:
         return {
             "ready": False,

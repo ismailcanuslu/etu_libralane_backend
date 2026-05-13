@@ -4,8 +4,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
     )
@@ -25,13 +23,6 @@ class Settings(BaseSettings):
     # Eşzamanlı en fazla kaç job çalışabilir; aşan job'lar QUEUED kalır.
     max_concurrent_jobs: int = 4
 
-    ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "gemma4:26b"
-    ollama_timeout_seconds: int = 300
-    ollama_auto_start: bool = True
-    ollama_container_name: str = ""
-    ollama_host_start_command: str = ""
-    ollama_ready_timeout_seconds: int = 60
     enable_openlane_tools: bool = True
     openlane_pdk_host_path: str = ""
     openlane_pdk_mount_path: str = "/openlane/pdk"

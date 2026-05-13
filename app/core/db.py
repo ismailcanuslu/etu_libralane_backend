@@ -28,7 +28,7 @@ engine = create_engine(
 
 def init_db() -> None:
     # Tablo metadata'sının yüklenmiş olması için modelleri import et.
-    from app.models import job  # noqa: F401
+    from app.models import chat_history, job  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
 
