@@ -141,7 +141,10 @@ async def chat(request: ChatRequest):
         request.message,
         [{"role": item.role, "content": item.content} for item in request.history],
     )
-    return {"reply": result}
+    out: dict[str, object] = {"reply": result.text}
+    if result.thinking:
+        out["thinking"] = result.thinking
+    return out
 
 
 @router.websocket("/chat/ws")

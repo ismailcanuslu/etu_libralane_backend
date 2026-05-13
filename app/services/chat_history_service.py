@@ -37,15 +37,17 @@ def get_messages_for_project(project_id: str) -> list[dict[str, Any]]:
                         attachments = parsed
                 except json.JSONDecodeError:
                     attachments = None
-            out.append(
-                {
-                    "id": row.client_message_id,
-                    "role": row.role,
-                    "content": row.content,
-                    "timestamp": row.created_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
-                    "attachments": attachments,
-                }
-            )
+            item: dict[str, Any] = {
+                "id": row.client_message_id,
+                "role": row.role,
+                "content": row.content,
+                "timestamp": row.created_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                "attachments": attachments,
+            }
+            th = getattr(row, "thinking", None)
+            if isinstance(th, str) and th.strip():
+                item["thinking"] = th.strip()
+            out.append(item)
     return out
 
 
@@ -65,6 +67,8 @@ def replace_project_messages(session: Session, project_id: str, messages: list[d
         created = _parse_ts(str(ts_raw)) if isinstance(ts_raw, str) else datetime.now(timezone.utc)
         att = msg.get("attachments")
         att_json = json.dumps(att, ensure_ascii=False) if att is not None else None
+        th = msg.get("thinking")
+        thinking_val = th.strip() if isinstance(th, str) and th.strip() else None
         session.add(
             ChatHistoryMessage(
                 project_id=project_id,
@@ -73,6 +77,7 @@ def replace_project_messages(session: Session, project_id: str, messages: list[d
                 content=content,
                 created_at=created,
                 attachments_json=att_json,
+                thinking=thinking_val,
                 position=position,
             )
         )

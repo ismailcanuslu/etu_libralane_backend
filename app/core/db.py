@@ -31,6 +31,21 @@ def init_db() -> None:
     from app.models import chat_history, job  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _ensure_chat_thinking_column()
+
+
+def _ensure_chat_thinking_column() -> None:
+    """Mevcut SQLite DB'ye thinking sutunu ekle (create_all ALTER yapmaz)."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "chat_history_messages" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("chat_history_messages")}
+    if "thinking" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE chat_history_messages ADD COLUMN thinking TEXT"))
 
 
 @contextmanager

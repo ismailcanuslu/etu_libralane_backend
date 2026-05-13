@@ -18,4 +18,5 @@ class ChatHistoryMessage(SQLModel, table=True):
     content: str
     created_at: datetime = Field(default_factory=_utcnow)
     attachments_json: Optional[str] = None
+    thinking: Optional[str] = None
     position: int = Field(default=0, index=True)

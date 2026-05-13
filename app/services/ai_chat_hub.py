@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-from app.services.ai_service import chat_reply
+from app.services.ai_service import aiter_chat_stream, chat_reply
 
 
 @dataclass
@@ -15,6 +15,7 @@ class ChatDelivery:
     request_id: str
     status: str = "queued"
     reply: str | None = None
+    thinking: str | None = None
     error: str | None = None
 
 
@@ -97,13 +98,43 @@ class AIChatHub:
             delivery.status = "processing"
         await self._broadcast({"type": "status", "id": request_id, "status": "processing"})
 
+        last_thinking: str | None = None
+        last_reply = ""
         try:
-            reply = await asyncio.to_thread(chat_reply, message, history)
-            await self._finish(request_id, reply=reply)
+            stream_ok = False
+            async for part in aiter_chat_stream(message, history, max_tokens=900):
+                stream_ok = True
+                th = part.get("thinking")
+                co = part.get("content")
+                if isinstance(th, str) and th.strip():
+                    last_thinking = th.strip()
+                if isinstance(co, str) and co.strip():
+                    last_reply = co.strip()
+                payload: dict[str, Any] = {"type": "stream_partial", "id": request_id}
+                if isinstance(th, str) and th.strip():
+                    payload["thinking"] = th.strip()
+                if isinstance(co, str) and co.strip():
+                    payload["content"] = co.strip()
+                if len(payload) > 2:
+                    await self._broadcast(payload)
+            if not stream_ok:
+                raise RuntimeError("ollama stream empty")
+            await self._finish(request_id, reply=last_reply, thinking=last_thinking)
         except Exception as exc:  # noqa: BLE001
-            await self._finish(request_id, error=str(exc))
+            try:
+                result = await asyncio.to_thread(chat_reply, message, history)
+                await self._finish(request_id, reply=result.text, thinking=result.thinking)
+            except Exception as fallback_exc:  # noqa: BLE001
+                await self._finish(request_id, error=f"Akis: {exc}; yedek: {fallback_exc}")
 
-    async def _finish(self, request_id: str, *, reply: str | None = None, error: str | None = None) -> None:
+    async def _finish(
+        self,
+        request_id: str,
+        *,
+        reply: str | None = None,
+        thinking: str | None = None,
+        error: str | None = None,
+    ) -> None:
         async with self._lock:
             delivery = self._deliveries.get(request_id)
             if delivery is None:
@@ -111,6 +142,7 @@ class AIChatHub:
                 self._deliveries[request_id] = delivery
             delivery.status = "failed" if error else "done"
             delivery.reply = reply
+            delivery.thinking = thinking
             delivery.error = error
 
         if error:
@@ -118,9 +150,15 @@ class AIChatHub:
                 {"type": "error", "id": request_id, "message": error, "replay": False},
             )
             return
-        await self._broadcast(
-            {"type": "reply", "id": request_id, "reply": reply or "", "replay": False},
-        )
+        payload: dict[str, Any] = {
+            "type": "reply",
+            "id": request_id,
+            "reply": reply or "",
+            "replay": False,
+        }
+        if thinking:
+            payload["thinking"] = thinking
+        await self._broadcast(payload)
 
     async def _flush_pending(self, websocket: WebSocket) -> None:
         async with self._lock:
@@ -144,15 +182,15 @@ class AIChatHub:
                 )
                 continue
             if delivery.reply is not None:
-                await self._send(
-                    websocket,
-                    {
-                        "type": "reply",
-                        "id": delivery.request_id,
-                        "reply": delivery.reply,
-                        "replay": True,
-                    },
-                )
+                p: dict[str, Any] = {
+                    "type": "reply",
+                    "id": delivery.request_id,
+                    "reply": delivery.reply,
+                    "replay": True,
+                }
+                if delivery.thinking:
+                    p["thinking"] = delivery.thinking
+                await self._send(websocket, p)
 
     async def _broadcast(self, payload: dict[str, Any]) -> None:
         async with self._lock:

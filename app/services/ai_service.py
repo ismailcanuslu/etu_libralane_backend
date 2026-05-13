@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from typing import Iterable, Mapping
+import json
+from collections.abc import AsyncIterator, Iterable, Mapping
+from dataclasses import dataclass
+from typing import Any
 
+import httpx
 import ollama
 
 from app.services.ollama_config import load_ollama_prefs
@@ -13,28 +17,135 @@ _SYSTEM_PROMPT = (
 )
 
 
-def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> str:
+@dataclass(frozen=True)
+class ChatReply:
+    """Ollama /api/chat yaniti — bazi modeller metni `thinking` altinda verir."""
+
+    text: str
+    thinking: str | None = None
+
+
+def _message_dict_from_response(response: object) -> dict[str, Any] | None:
+    if isinstance(response, dict):
+        m = response.get("message")
+        return m if isinstance(m, dict) else None
+    m = getattr(response, "message", None)
+    return m if isinstance(m, dict) else None
+
+
+def _stringify_thinking_fragment(val: Any) -> str | None:
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    if isinstance(val, list):
+        parts: list[str] = []
+        for item in val:
+            if isinstance(item, str) and item.strip():
+                parts.append(item.strip())
+            elif isinstance(item, dict):
+                t = item.get("thinking") or item.get("text") or item.get("content")
+                s = _stringify_thinking_fragment(t)
+                if s:
+                    parts.append(s)
+        return "\n".join(parts).strip() if parts else None
+    return None
+
+
+def _extract_thinking_from_content_list(items: list[Any]) -> str | None:
+    parts: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        typ = str(item.get("type") or "").lower()
+        if typ in ("thinking", "reasoning"):
+            s = _stringify_thinking_fragment(item.get("thinking") or item.get("text") or item.get("content"))
+            if s:
+                parts.append(s)
+    return "\n\n".join(parts).strip() if parts else None
+
+
+def _extract_thinking(msg: dict[str, Any]) -> str | None:
+    for key in ("thinking", "reasoning", "reasoning_content"):
+        val = msg.get(key)
+        s = _stringify_thinking_fragment(val)
+        if s:
+            return s
+    c = msg.get("content")
+    if isinstance(c, list):
+        nested = _extract_thinking_from_content_list(c)
+        if nested:
+            return nested
+    return None
+
+
+def _extract_content(msg: dict[str, Any]) -> str:
+    c = msg.get("content")
+    parts: list[str] = []
+    if isinstance(c, str) and c.strip():
+        parts.append(c.strip())
+    elif isinstance(c, list):
+        for item in c:
+            if isinstance(item, dict):
+                typ = str(item.get("type") or "").lower()
+                if typ in ("thinking", "reasoning"):
+                    continue
+                if item.get("type") == "text" and isinstance(item.get("text"), str):
+                    parts.append(item["text"].strip())
+                elif isinstance(item.get("content"), str):
+                    parts.append(item["content"].strip())
+            elif isinstance(item, str) and item.strip():
+                parts.append(item.strip())
+    return "\n".join(x for x in parts if x).strip()
+
+
+def _normalize_chat_response(response: object) -> ChatReply:
+    root_thinking: str | None = None
+    if isinstance(response, dict):
+        root_thinking = _stringify_thinking_fragment(response.get("thinking"))
+    else:
+        rt = getattr(response, "thinking", None)
+        root_thinking = _stringify_thinking_fragment(rt)
+
+    msg = _message_dict_from_response(response)
+    if msg is None:
+        return ChatReply(text="Ollama bos yanit dondurdu (message yok).", thinking=root_thinking)
+
+    thinking = _extract_thinking(msg) or root_thinking
+    content = _extract_content(msg)
+
+    if content:
+        return ChatReply(text=content, thinking=thinking)
+
+    if thinking:
+        return ChatReply(text="", thinking=thinking)
+
+    return ChatReply(text="Ollama bos yanit dondurdu (icerik yok).", thinking=None)
+
+
+def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> ChatReply:
     ensure_ollama_running()
     prefs = load_ollama_prefs()
     base_url = resolve_ollama_base_url_sync(prefs) or prefs.base_url.rstrip("/")
     client = ollama.Client(host=base_url, timeout=prefs.timeout_seconds)
+    chat_kwargs: dict[str, Any] = {
+        "model": prefs.model,
+        "messages": messages,
+        "stream": False,
+        "options": {"num_predict": max_tokens},
+        # Ollama: ayri `message.thinking` icin gerekli (docs.ollama.com /api/chat `think`)
+        "think": True,
+    }
     try:
-        response = client.chat(
-            model=prefs.model,
-            messages=messages,
-            stream=False,
-            options={"num_predict": max_tokens},
-        )
+        response = client.chat(**chat_kwargs)
+    except TypeError:
+        chat_kwargs.pop("think", None)
+        try:
+            response = client.chat(**chat_kwargs)
+        except Exception as exc:  # noqa: BLE001
+            return ChatReply(text=f"Ollama API hatasi: {exc}", thinking=None)
     except Exception as exc:  # noqa: BLE001
-        return f"Ollama API hatasi: {exc}"
+        return ChatReply(text=f"Ollama API hatasi: {exc}", thinking=None)
 
-    message = response.get("message") if isinstance(response, dict) else getattr(response, "message", None)
-    if isinstance(message, dict):
-        content = message.get("content")
-        if isinstance(content, str) and content.strip():
-            return content.strip()
-
-    return "Ollama bos yanit dondurdu."
+    return _normalize_chat_response(response)
 
 
 def analyze_log(log_text: str) -> str:
@@ -53,10 +164,15 @@ def analyze_log(log_text: str) -> str:
             ),
         },
     ]
-    return _ollama_chat(messages, max_tokens=600)
+    r = _ollama_chat(messages, max_tokens=600)
+    if r.text.strip():
+        return r.text.strip()
+    if r.thinking:
+        return r.thinking.strip()
+    return "Ollama bos yanit dondurdu."
 
 
-def chat_reply(message: str, history: Iterable[Mapping[str, str]] | None = None) -> str:
+def build_chat_messages(message: str, history: Iterable[Mapping[str, str]] | None = None) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
     for item in history or ():
         role = item.get("role")
@@ -64,4 +180,100 @@ def chat_reply(message: str, history: Iterable[Mapping[str, str]] | None = None)
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": message})
+    return messages
+
+
+def merge_stream_field(acc: str, piece: str) -> str:
+    """Ollama akisinda kimi surumler birikimli tam metin, kimi parca (delta) gonderebilir."""
+    piece = piece.strip() if piece else ""
+    if not piece:
+        return acc
+    if not acc:
+        return piece
+    if piece.startswith(acc):
+        return piece
+    if len(piece) > len(acc) and acc == piece[: len(acc)]:
+        return piece
+    if acc.startswith(piece) and len(acc) > len(piece):
+        return acc
+    return acc + piece
+
+
+async def aiter_chat_stream(
+    message: str,
+    history: Iterable[Mapping[str, str]] | None = None,
+    *,
+    max_tokens: int = 900,
+) -> AsyncIterator[dict[str, Any]]:
+    """Ollama /api/chat NDJSON akisi; her satirda birikimli thinking/content (varsa) dondurur."""
+    messages = build_chat_messages(message, history)
+    ensure_ollama_running()
+    prefs = load_ollama_prefs()
+    base_url = resolve_ollama_base_url_sync(prefs) or prefs.base_url.rstrip("/")
+    url = f"{base_url}/api/chat"
+    timeout = httpx.Timeout(prefs.timeout_seconds, connect=30.0)
+
+    async def consume_body(body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        thinking_acc = ""
+        content_acc = ""
+        last_sig = ("", "")
+        async with httpx.AsyncClient(timeout=timeout) as http:
+            async with http.stream("POST", url, json=body) as resp:
+                resp.raise_for_status()
+                buf = b""
+                async for bchunk in resp.aiter_bytes():
+                    buf += bchunk
+                    while b"\n" in buf:
+                        raw_line, buf = buf.split(b"\n", 1)
+                        line = raw_line.strip()
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        msg = data.get("message")
+                        if isinstance(msg, dict):
+                            th = msg.get("thinking")
+                            if isinstance(th, str) and th.strip():
+                                thinking_acc = merge_stream_field(thinking_acc, th)
+                            ctext = _extract_content(msg)
+                            if ctext:
+                                content_acc = merge_stream_field(content_acc, ctext)
+                            elif isinstance(msg.get("content"), str) and msg["content"].strip():
+                                content_acc = merge_stream_field(content_acc, msg["content"])
+                        sig = (thinking_acc, content_acc)
+                        done = bool(data.get("done"))
+                        if sig == last_sig and not done:
+                            continue
+                        last_sig = sig
+                        out: dict[str, Any] = {}
+                        if thinking_acc.strip():
+                            out["thinking"] = thinking_acc.strip()
+                        if content_acc.strip():
+                            out["content"] = content_acc.strip()
+                        if out or done:
+                            yield out
+
+    base_body: dict[str, Any] = {
+        "model": prefs.model,
+        "messages": messages,
+        "stream": True,
+        "options": {"num_predict": max_tokens},
+    }
+    with_think = {**base_body, "think": True}
+    try:
+        async for part in consume_body(with_think):
+            yield part
+        return
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 400:
+            raise
+    without_think = dict(base_body)
+    async for part in consume_body(without_think):
+        yield part
+
+
+def chat_reply(message: str, history: Iterable[Mapping[str, str]] | None = None) -> ChatReply:
+    messages = build_chat_messages(message, history)
     return _ollama_chat(messages, max_tokens=900)
