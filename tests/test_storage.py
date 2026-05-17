@@ -27,17 +27,21 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(content, b"module top(); endmodule")
 
     def test_exclude_jobs_prefix_on_copy(self) -> None:
-        storage.ensure_project("demo-project")
-        storage.write_bytes("demo-project", "design.v", b"rtl")
-        storage.write_bytes("demo-project", "_jobs/job-1/log.txt", b"log")
         dst = os.path.join(self.temp_dir.name, "job-workspace")
         os.makedirs(dst, exist_ok=True)
-        copied = storage.copy_project_to_dir(
-            "demo-project",
-            "",
-            dst,
-            exclude_prefixes=["_jobs/"],
-        )
+        with (
+            patch("app.services.project_scaffold.scaffold_openlane_project", return_value=[]),
+            patch("app.services.project_scaffold.ensure_caravel_guide", return_value=False),
+        ):
+            storage.ensure_project("demo-project")
+            storage.write_bytes("demo-project", "design.v", b"rtl")
+            storage.write_bytes("demo-project", "_jobs/job-1/log.txt", b"log")
+            copied = storage.copy_project_to_dir(
+                "demo-project",
+                "",
+                dst,
+                exclude_prefixes=["_jobs/"],
+            )
         self.assertEqual(len(copied), 1)
         self.assertTrue(os.path.isfile(os.path.join(dst, "design.v")))
         self.assertFalse(os.path.exists(os.path.join(dst, "_jobs")))

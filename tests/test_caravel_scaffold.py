@@ -37,8 +37,13 @@ class CaravelScaffoldTests(unittest.TestCase):
             project_id = "legacy-proj"
             base = Path(tmp) / project_id
             base.mkdir()
-            (base / "verilog/rtl/user_module.v").parent.mkdir(parents=True)
-            (base / "verilog/rtl/user_module.v").write_text("// legacy\n", encoding="utf-8")
+            rtl = base / "verilog/rtl"
+            rtl.mkdir(parents=True)
+            (rtl / "user_module.v").write_text("// legacy\n", encoding="utf-8")
+            (rtl / "user_project_wrapper.v").write_text("// legacy wrapper\n", encoding="utf-8")
+            wrapper_cfg = base / "openlane/user_project_wrapper"
+            wrapper_cfg.mkdir(parents=True)
+            (wrapper_cfg / "config.json").write_text("{}", encoding="utf-8")
 
             with patch("app.services.project_scaffold.project_dir", return_value=base):
                 created = scaffold_openlane_project(project_id)

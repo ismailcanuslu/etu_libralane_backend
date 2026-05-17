@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import shlex
 
@@ -37,8 +38,6 @@ _INPUT_PATTERNS: dict[str, list[str]] = {
 
 
 def _match_patterns(keys: list[str], patterns: list[str]) -> list[str]:
-    import fnmatch
-
     found: list[str] = []
     for pattern in patterns:
         if "*" in pattern:
@@ -49,6 +48,15 @@ def _match_patterns(keys: list[str], patterns: list[str]) -> list[str]:
             elif pattern in keys:
                 found.append(pattern)
     return sorted(set(found))
+
+
+def _simulation_default_files(keys: list[str], matched: list[str]) -> list[str]:
+    """Caravel dizinindeyse yalnizca verilog/rtl + tb/tb_*.v oner (counter_tb ile karismasin)."""
+    rtl = sorted(k for k in matched if k.startswith("verilog/rtl/") and k.endswith(".v"))
+    tb_caravel = sorted(k for k in matched if fnmatch.fnmatch(k, "tb/tb_*.v"))
+    if rtl:
+        return sorted(set(rtl + tb_caravel))
+    return list(matched)
 
 
 def build_run_preview(
@@ -89,6 +97,20 @@ def build_run_preview(
         warnings.append("config.json veya config.tcl bulunamadı.")
     if spec.kind == "flow" and "flow.tcl" not in keys:
         warnings.append("flow.tcl bulunamadı (openlane1-flow için gerekli).")
+    if action == "simulation":
+        has_caravel_tb = any(fnmatch.fnmatch(k, "tb/tb_*.v") for k in keys)
+        has_legacy_tb = any(fnmatch.fnmatch(k, "tb/*_tb.v") for k in keys)
+        if has_caravel_tb and has_legacy_tb:
+            warnings.append(
+                "Hem Caravel testbench (tb/tb_*.v) hem eski tb/*_tb.v var; "
+                "simülasyon yalnızca tb/tb_*.v kullanır. counter_tb'yi listeden çıkarabilirsiniz."
+            )
+
+    default_input_files = (
+        _simulation_default_files(keys, input_files)
+        if action == "simulation"
+        else list(input_files)
+    )
 
     pdk = get_pdk_runtime_info()
     job_workspace_template = f"{settings.jobs_host_dir}/<job_id>/workspace"
@@ -101,14 +123,19 @@ def build_run_preview(
         "design_name": design,
         "image": spec.image,
         "command": command,
-        "command_display": " ".join(shlex.quote(p) for p in command),
+        # bash -lc: script govdesini ayri satirda goster (tek satirli '"'"' kacisi kopyalamada kirilir)
+        "command_display": (
+            f"{command[0]} {command[1]}\n{command[2]}"
+            if len(command) == 3 and command[0] == "bash" and command[1] in ("-lc", "-c")
+            else " ".join(shlex.quote(p) for p in command)
+        ),
         "workspace_root": str(settings.workspace_root),
         "project_path": f"{settings.workspace_root}/{project_id}",
         "job_workspace_template": job_workspace_template,
         "container_workdir": settings.jobs_workdir_in_runner,
         "pdk": pdk,
         "input_files": input_files,
-        "default_input_files": list(input_files),
+        "default_input_files": default_input_files,
         "output_hints": output_hints,
         "warnings": warnings,
         "requires_pdk": spec.requires_pdk,

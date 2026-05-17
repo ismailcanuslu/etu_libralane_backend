@@ -124,18 +124,18 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         image=_RUNNER,
         cmd=_shell(
             "set -e; "
-            "echo '[librelane] simulasyon basladi'; "
+            'echo "[librelane] simulasyon basladi"; '
             "command -v iverilog >/dev/null 2>&1 && command -v vvp >/dev/null 2>&1 || "
-            "{ echo '[librelane] iverilog/vvp bulunamadi (bash PATH?)'; exit 2; }; "
+            '{ echo "[librelane] iverilog/vvp bulunamadi (bash PATH?)"; exit 2; }; '
             f"{simulation_verilog_shell()}; "
-            "echo \"[librelane] RTL=$VF TB=$TB\"; "
-            "echo '[librelane] iverilog derleniyor...'; "
+            'echo "[librelane] RTL=$VF TB=$TB"; '
+            'echo "[librelane] iverilog derleniyor..."; '
             "iverilog -g2012 $INC -o sim.vvp $VF $TB; "
-            "echo '[librelane] vvp calistiriliyor (max 600s)...'; "
+            'echo "[librelane] vvp calistiriliyor (max 600s)..."; '
             "if command -v timeout >/dev/null 2>&1; then "
             "timeout --kill-after=15 600 vvp sim.vvp; "
             "else vvp sim.vvp; fi; "
-            "echo '[librelane] simulasyon bitti (exit='$?')"
+            'echo "[librelane] simulasyon bitti exit=$?"'
         ),
         group="build",
         requires_verilog=True,

@@ -35,8 +35,9 @@ class WorkspaceApiTests(unittest.TestCase):
         listing = self.client.get("/files/demo-project/objects")
         self.assertEqual(listing.status_code, 200)
         payload = listing.json()
-        self.assertEqual(payload["count"], 1)
-        self.assertEqual(payload["objects"][0]["key"], "src/top.v")
+        keys = [obj["key"] for obj in payload["objects"]]
+        self.assertIn("src/top.v", keys)
+        self.assertGreaterEqual(payload["count"], 1)
 
         download = self.client.get("/files/demo-project/objects/src/top.v")
         self.assertEqual(download.status_code, 200)

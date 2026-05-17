@@ -94,6 +94,13 @@ class ToolsCatalogTests(unittest.TestCase):
             self.assertTrue(spec.enabled, action)
             self.assertEqual(spec.image, expected)
 
+    def test_shell_tools_use_bash_lc(self) -> None:
+        for action in ("smoke-test", "lint", "simulation", "synthesis", "verification"):
+            spec = get_tool(action)
+            assert spec is not None
+            self.assertEqual(spec.cmd[0], "bash", action)
+            self.assertEqual(spec.cmd[1], "-lc", action)
+
     def test_manifest_json_is_parseable(self) -> None:
         from pathlib import Path
 
