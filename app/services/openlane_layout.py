@@ -65,13 +65,15 @@ def verilog_glob_shell_var() -> str:
 
 
 def simulation_verilog_shell() -> str:
+    """Tek testbench — tb/*.v hepsini birden derleme (counter_tb + caravel tb cakismaz)."""
     return (
         f"{verilog_glob_shell_var()}; "
-        'INC=""; if ls verilog/rtl/*.v >/dev/null 2>&1; then INC="-Iverilog/rtl"; '
-        'elif ls src/*.v >/dev/null 2>&1; then INC="-Isrc"; fi; '
-        'TB=""; if ls tb/*.v >/dev/null 2>&1; then TB=tb/*.v; '
-        'elif ls tb/tb_*.v >/dev/null 2>&1; then TB=tb/tb_*.v; '
+        'INC="-I. -Iverilog/rtl -Itb"; '
+        'if ls verilog/rtl/*.v >/dev/null 2>&1; then :; '
+        'elif ls src/*.v >/dev/null 2>&1; then INC="-I. -Isrc"; fi; '
+        'TB=""; if ls tb/tb_*.v >/dev/null 2>&1; then TB=tb/tb_*.v; '
         'elif ls tb/*_tb.v >/dev/null 2>&1; then TB=tb/*_tb.v; '
+        'elif ls tb/*.v >/dev/null 2>&1; then TB=tb/*.v; '
         'elif ls tb_*.v >/dev/null 2>&1; then TB=tb_*.v; '
-        'else echo "no testbench under tb/"; exit 1; fi'
+        'else echo "no testbench (tb/tb_*.v veya tb/*_tb.v)"; exit 1; fi'
     )

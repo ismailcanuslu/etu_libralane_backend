@@ -89,6 +89,93 @@ RTL: `verilog/rtl/` (`user_module.v`, `user_project_wrapper.v`).
 
 ---
 
+## Beklenen dizin yapısı (Caravel user project)
+
+Efabless [caravel_user_project](https://github.com/efabless/caravel_user_project) ile uyumlu iskelet. “İstediğimiz gibi” dağınık `.v` koymak simülasyon için bazen yeterlidir; **MPW / tape-out** için bu yapıya uymak gerekir.
+
+```text
+proje_koku/
+├── guide.md                          # Bu rehber
+├── README.md
+├── flow.tcl                          # OpenLane 1 giriş (adım 5)
+├── verilog/rtl/                      # Tüm sentezlenebilir RTL (asıl kaynak)
+│   ├── defines.v                     # MPRJ_IO_PADS vb. ortak define'lar
+│   ├── user_module.v                 # Sizin IP (ör. sayaç, UART, …)
+│   ├── user_project_wrapper.v        # Caravel pin listesi + user_module örneği
+│   └── …                             # Ek modüller (ör. counter10.v) — aşağıya bakın
+├── tb/                               # Yalnızca testbench (.v)
+│   ├── tb_user_project_wrapper.v     # Caravel wrapper sim (tb_*.v)
+│   └── …                             # İsteğe bağlı ayrı bench (*_tb.v) — tek tek sim
+├── openlane/
+│   ├── user_module/                  # Opsiyonel: IP’yi önce macro olarak harden
+│   │   └── config.json
+│   └── user_project_wrapper/         # Web adım 5 — wrapper hardening
+│       ├── config.json
+│       └── pin_order.cfg
+├── runs/                             # OpenLane çıktıları (GDS, log)
+├── caravel/README.md                 # Adım 5.1 harness notları
+├── plans/                            # AI plan modu
+└── src/README.txt                    # Eski yol; yeni RTL buraya değil → verilog/rtl/
+```
+
+| Yol | Ne koyulur? | Ne koyulmaz? |
+|-----|-------------|--------------|
+| `verilog/rtl/` | Modül kaynakları (`.v`), `defines.v` | Testbench |
+| `tb/` | `tb_*.v`, `*_tb.v` testbench | RTL modül kaynağı |
+| `openlane/<design>/` | `config.json`, `pin_order.cfg` | RTL |
+| Proje kökü | `flow.tcl`, `guide.md` | Çok sayıda dağınık `.v` (kaçının) |
+
+**Web araçları hangi dosyayı okur?**
+
+| Araç | Okuduğu yer |
+|------|-------------|
+| Lint / Sentez / Doğrulama | `verilog/rtl/*.v` (yoksa `src/*.v`) |
+| Simülasyon | `verilog/rtl/*.v` + **tek** testbench: önce `tb/tb_*.v`, yoksa `tb/*_tb.v` |
+| OpenLane1 Flow | `flow.tcl` + `openlane/user_project_wrapper/config.json` |
+
+Simülasyonda `tb/*.v` **hepsi birden** derlenmez; Caravel için `tb/tb_user_project_wrapper.v` kullanın.
+
+---
+
+## Kendi devrenizi nereye koymalısınız? (örnek: `counter10.v`)
+
+0–10 sayan bir sayaç (`counter10`) için tipik Caravel yolu:
+
+### Yol A — Önerilen (tek IP = `user_module`)
+
+1. RTL dosyası: `verilog/rtl/counter10.v` — `module counter10 (...);`
+2. `verilog/rtl/user_module.v` içinde `counter10` örneğini bağlayın (portlar: `clk`, `rst_n`, `la_data_out` vb.).
+3. `user_project_wrapper.v` **değiştirmeyin** (zaten `user_module` örneğini içerir).
+4. Simülasyon: web adım **4** veya `tb/tb_user_project_wrapper.v` — tüm wrapper test edilir.
+5. Layout: adım **5** (`user_project_wrapper`).
+
+Bu, Efabless’in “user space = user_module” modeline uyar.
+
+### Yol B — Sadece `user_module.v` içine yazmak
+
+Küçük IP için ayrı dosya şart değil: sayaç kodunu doğrudan `verilog/rtl/user_module.v` içine yazın. Adım 5 ve sim aynı kalır.
+
+### Yol C — Sadece bench ile hızlı deneme (Caravel dışı)
+
+| Dosya | Konum |
+|-------|--------|
+| `counter10.v` | `verilog/rtl/counter10.v` |
+| `counter10_tb.v` | `tb/counter10_tb.v` veya `tb/tb_counter10.v` |
+
+Sim komutunda **yalnızca** bu iki dosyayı derleyin; `tb_user_project_wrapper.v` ile **aynı anda** derlemeyin. Bu yol tape-out wrapper’ını test etmez.
+
+### Yapılmaması gerekenler
+
+- `counter10.v` → `tb/` altına **koymayın** (testbench değil).
+- Proje köküne tek başına `counter10.v` → web araçları bulamayabilir.
+- `tb/counter_tb.v` + `tb/tb_user_project_wrapper.v` → **birlikte** simülasyon job’una vermeyin (çakışır).
+
+### Macro-first (ileri)
+
+IP büyükse önce `openlane/user_module/` Flow ile macro GDS/LEF, sonra wrapper `config.json` içinde `EXTRA_LEFS` / `EXTRA_GDS_FILES` (Efabless dokümantasyonu).
+
+---
+
 ## Aşama 1 — IP macro (isteğe bağlı)
 
 1. `verilog/rtl/user_module.v` — donanım IP’niz (Internet Protocol değil).
@@ -149,7 +236,10 @@ Tam interaktif KLayout web’de yok; detay için dosyayı indirip masaüstü KLa
 
 | Yol | Rol |
 |-----|-----|
-| `verilog/rtl/` | Caravel RTL |
+| `verilog/rtl/` | Tüm modül RTL + `defines.v` |
+| `verilog/rtl/user_module.v` | Sizin IP veya IP örneği |
+| `verilog/rtl/user_project_wrapper.v` | Caravel pinleri (adım 5 design) |
+| `tb/tb_*.v` | Wrapper simülasyonu |
 | `openlane/user_project_wrapper/` | Web adım 5 config |
 | `openlane/user_module/` | Opsiyonel macro config |
 | `flow.tcl` | OpenLane giriş |

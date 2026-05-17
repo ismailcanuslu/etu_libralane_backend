@@ -22,7 +22,7 @@ def caravel_guide_content(project_id: str) -> str:
     return template.replace("{{PROJECT_ID}}", project_id)
 
 
-_GUIDE_MARKERS = ("GDS ≠ tape-out", "layout_klayout_1440p")
+_GUIDE_MARKERS = ("GDS ≠ tape-out", "layout_klayout_1440p", "Beklenen dizin yapısı")
 
 
 def ensure_caravel_guide(project_id: str) -> bool:
@@ -255,7 +255,7 @@ endmodule
         (
             "tb/tb_user_project_wrapper.v",
             """`timescale 1ns/1ps
-`include "../verilog/rtl/defines.v"
+`include "defines.v"
 
 module tb_user_project_wrapper;
     reg wb_clk_i = 0;
