@@ -37,6 +37,12 @@ class OllamaConfigPut(BaseModel):
     container_name: str = ""
     host_start_command: str = ""
     ready_timeout_seconds: int = Field(default=60, ge=5, le=600)
+    chat_max_tokens: int = Field(
+        default=-1,
+        ge=-1,
+        le=262144,
+        description="Ollama num_predict; -1 = baglam dolana kadar (dusunce+yanit ortak)",
+    )
 
 
 class ChatHistoryBody(BaseModel):
@@ -94,6 +100,7 @@ async def ollama_config_put(body: OllamaConfigPut):
         container_name=body.container_name.strip(),
         host_start_command=body.host_start_command.strip(),
         ready_timeout_seconds=body.ready_timeout_seconds,
+        chat_max_tokens=body.chat_max_tokens,
     )
     save_ollama_prefs(prefs)
     reset_ollama_base_url_cache()

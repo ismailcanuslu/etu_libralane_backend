@@ -8,9 +8,13 @@ from typing import Any
 import httpx
 import ollama
 
-from app.services.ollama_config import load_ollama_prefs
+from app.services.ollama_config import OllamaPrefs, load_ollama_prefs
 from app.services.ollama_runtime import ensure_ollama_running, resolve_ollama_base_url_sync
-from app.services.text_format import merge_stream_field, normalize_model_markdown
+from app.services.text_format import (
+    DEFAULT_CHAT_MAX_TOKENS,
+    merge_stream_field,
+    normalize_model_markdown,
+)
 
 ChatMode = str  # "agent" | "plan"
 
@@ -110,11 +114,15 @@ def _extract_thinking(msg: dict[str, Any]) -> str | None:
     return None
 
 
-def _extract_content(msg: dict[str, Any]) -> str:
+def _extract_content(msg: dict[str, Any], *, for_stream: bool = False) -> str:
     c = msg.get("content")
     parts: list[str] = []
-    if isinstance(c, str) and c.strip():
-        parts.append(c.strip())
+    if isinstance(c, str):
+        if for_stream:
+            if c:
+                parts.append(c)
+        elif c.strip():
+            parts.append(c.strip())
     elif isinstance(c, list):
         for item in c:
             if isinstance(item, dict):
@@ -122,12 +130,27 @@ def _extract_content(msg: dict[str, Any]) -> str:
                 if typ in ("thinking", "reasoning"):
                     continue
                 if item.get("type") == "text" and isinstance(item.get("text"), str):
-                    parts.append(item["text"].strip())
+                    text = item["text"]
+                    if for_stream:
+                        if text:
+                            parts.append(text)
+                    elif text.strip():
+                        parts.append(text.strip())
                 elif isinstance(item.get("content"), str):
-                    parts.append(item["content"].strip())
-            elif isinstance(item, str) and item.strip():
-                parts.append(item.strip())
-    return "\n".join(x for x in parts if x).strip()
+                    text = item["content"]
+                    if for_stream:
+                        if text:
+                            parts.append(text)
+                    elif text.strip():
+                        parts.append(text.strip())
+            elif isinstance(item, str):
+                if for_stream:
+                    if item:
+                        parts.append(item)
+                elif item.strip():
+                    parts.append(item.strip())
+    joined = "".join(parts) if for_stream else "\n".join(x for x in parts if x)
+    return joined if for_stream else joined.strip()
 
 
 def _normalize_chat_response(response: object) -> ChatReply:
@@ -205,6 +228,18 @@ def analyze_log(log_text: str) -> str:
     return "Ollama bos yanit dondurdu."
 
 
+def resolve_chat_max_tokens(prefs: OllamaPrefs | None = None) -> int:
+    """Ollama num_predict — dusunce ve yanit ayni kotadan uretilir."""
+    prefs = prefs or load_ollama_prefs()
+    try:
+        n = int(prefs.chat_max_tokens)
+    except (TypeError, ValueError):
+        return DEFAULT_CHAT_MAX_TOKENS
+    if n == 0:
+        return DEFAULT_CHAT_MAX_TOKENS
+    return n
+
+
 def build_chat_messages(
     message: str,
     history: Iterable[Mapping[str, str]] | None = None,
@@ -225,13 +260,14 @@ async def aiter_chat_stream(
     message: str,
     history: Iterable[Mapping[str, str]] | None = None,
     *,
-    max_tokens: int = 900,
+    max_tokens: int | None = None,
     mode: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Ollama /api/chat NDJSON akisi; her satirda birikimli thinking/content (varsa) dondurur."""
     messages = build_chat_messages(message, history, mode=mode)
     ensure_ollama_running()
     prefs = load_ollama_prefs()
+    num_predict = resolve_chat_max_tokens(prefs) if max_tokens is None else max_tokens
     base_url = resolve_ollama_base_url_sync(prefs) or prefs.base_url.rstrip("/")
     url = f"{base_url}/api/chat"
     timeout = httpx.Timeout(prefs.timeout_seconds, connect=30.0)
@@ -260,10 +296,10 @@ async def aiter_chat_stream(
                             th = msg.get("thinking")
                             if isinstance(th, str) and th.strip():
                                 thinking_acc = merge_stream_field(thinking_acc, th)
-                            ctext = _extract_content(msg)
+                            ctext = _extract_content(msg, for_stream=True)
                             if ctext:
                                 content_acc = merge_stream_field(content_acc, ctext)
-                            elif isinstance(msg.get("content"), str) and msg["content"].strip():
+                            elif isinstance(msg.get("content"), str) and msg["content"]:
                                 content_acc = merge_stream_field(content_acc, msg["content"])
                         sig = (thinking_acc, content_acc)
                         done = bool(data.get("done"))
@@ -284,7 +320,7 @@ async def aiter_chat_stream(
         "model": prefs.model,
         "messages": messages,
         "stream": True,
-        "options": {"num_predict": max_tokens},
+        "options": {"num_predict": num_predict},
     }
     with_think = {**base_body, "think": True}
     try:
@@ -306,7 +342,7 @@ def chat_reply(
     mode: str | None = None,
 ) -> ChatReply:
     messages = build_chat_messages(message, history, mode=mode)
-    result = _ollama_chat(messages, max_tokens=900)
+    result = _ollama_chat(messages, max_tokens=resolve_chat_max_tokens())
     return ChatReply(
         text=normalize_model_markdown(result.text) or "",
         thinking=normalize_model_markdown(result.thinking),

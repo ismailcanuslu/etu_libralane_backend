@@ -43,6 +43,22 @@ def _ensure_image(image: str) -> None:
             pass
 
 
+def _ensure_network(network: Optional[str]) -> Optional[str]:
+    """Runner agini olusturur; yoksa None (Docker varsayilan bridge)."""
+    if not network:
+        return None
+    cli = _client()
+    try:
+        cli.networks.get(network)
+        return network
+    except NotFound:
+        try:
+            cli.networks.create(network, driver="bridge")
+            return network
+        except APIError:
+            return None
+
+
 def create_container(
     image: str,
     cmd: list[str],
@@ -58,19 +74,21 @@ def create_container(
     volumes = {host_workdir: {"bind": settings.jobs_workdir_in_runner, "mode": "rw"}}
     if extra_volumes:
         volumes.update(extra_volumes)
-    container = cli.containers.create(
-        image=image,
-        command=cmd,
-        working_dir=settings.jobs_workdir_in_runner,
-        environment=env or {},
-        volumes=volumes,
-        network=network or settings.runner_network,
-        detach=True,
-        tty=False,
-        stdin_open=False,
-        labels={"librelane.role": "runner"},
-        # network_mode'u network ile birlikte belirtemeyiz; create_host_config içinde network kullanır
-    )
+    net = _ensure_network(network or settings.runner_network)
+    create_kwargs: dict = {
+        "image": image,
+        "command": cmd,
+        "working_dir": settings.jobs_workdir_in_runner,
+        "environment": env or {},
+        "volumes": volumes,
+        "detach": True,
+        "tty": False,
+        "stdin_open": False,
+        "labels": {"librelane.role": "runner"},
+    }
+    if net:
+        create_kwargs["network"] = net
+    container = cli.containers.create(**create_kwargs)
     return container
 
 

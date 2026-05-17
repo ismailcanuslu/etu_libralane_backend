@@ -7,6 +7,13 @@ import re
 # Delta birlestirmede bosluk gerektirmeyen bas / son karakterler
 _NO_SPACE_BEFORE = frozenset(".,;:!?)]}\"'`…’")
 _NO_SPACE_AFTER = frozenset("([{\"'`“‘")
+# Kucuk ek parcalari (think+ing) birlestirmede bosluk ekleme
+_SUFFIX_PIECES = frozenset(
+    {"ing", "ed", "ly", "er", "es", "ment", "ness", "tion", "s", "d", "n", "m", "t", "re"}
+)
+
+# Ollama num_predict varsayilani; -1 = model baglami dolana kadar (Ollama "sinirsiz")
+DEFAULT_CHAT_MAX_TOKENS = 32768
 
 
 def merge_stream_field(acc: str, piece: str) -> str:
@@ -29,16 +36,27 @@ def merge_stream_field(acc: str, piece: str) -> str:
     return acc + piece
 
 
+def _is_likely_suffix_piece(piece: str) -> bool:
+    p = piece.strip().lower()
+    if not p or not p.isalpha():
+        return False
+    if p in _SUFFIX_PIECES:
+        return True
+    return len(p) <= 2
+
+
 def _needs_space_between(acc: str, piece: str) -> bool:
     if acc[-1].isspace() or piece[0].isspace():
         return False
     if acc[-1] in _NO_SPACE_AFTER or piece[0] in _NO_SPACE_BEFORE:
         return False
-    # Kelime parcalari: kucuk harf + buyuk harf (or. "adimPlan" -> "adim Plan")
-    if len(acc) >= 1 and len(piece) >= 1:
-        a, b = acc[-1], piece[0]
-        if a.islower() and b.isupper():
-            return True
+    if acc[-1] in ".!?" and piece[0].isalnum():
+        return True
+    a, b = acc[-1], piece[0]
+    if a.islower() and b.isupper():
+        return True
+    if a.isalnum() and b.isalnum() and not _is_likely_suffix_piece(piece):
+        return True
     return False
 
 

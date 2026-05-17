@@ -5,6 +5,7 @@ import errno
 import fcntl
 import os
 import pty
+import shlex
 import struct
 import subprocess
 import termios
@@ -24,6 +25,30 @@ def _utcnow() -> datetime:
 def _set_winsize(fd: int, rows: int, cols: int) -> None:
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+
+
+def _running_in_container() -> bool:
+    if os.path.exists("/.dockerenv"):
+        return True
+    return os.environ.get("LIBRELANE_IN_CONTAINER", "").strip().lower() in ("1", "true", "yes")
+
+
+def _should_use_nsenter(settings) -> bool:
+    """nsenter yalnizca host uzerinde dogrudan calisirken; container icinde /workspace host'ta yok."""
+    return bool(settings.host_terminal_use_nsenter) and not _running_in_container()
+
+
+def _project_dir(project_id: str, settings) -> str:
+    return os.path.join(settings.workspace_root, project_id)
+
+
+def _resolve_shell_cwd(project_id: str, settings) -> str:
+    project_dir = _project_dir(project_id, settings)
+    os.makedirs(project_dir, exist_ok=True)
+    if _running_in_container():
+        cwd = (settings.host_terminal_container_cwd or "/").strip() or "/"
+        return cwd
+    return project_dir
 
 
 @dataclass
@@ -91,8 +116,9 @@ class HostShellRegistry:
         if not settings.enable_host_terminal:
             raise RuntimeError("host terminal disabled")
 
-        cwd = os.path.join(settings.workspace_root, project_id)
-        os.makedirs(cwd, exist_ok=True)
+        project_dir = _project_dir(project_id, settings)
+        os.makedirs(project_dir, exist_ok=True)
+        cwd = _resolve_shell_cwd(project_id, settings)
 
         with self._lock:
             open_count = sum(1 for session in self._sessions.values() if session.closed_at is None)
@@ -101,14 +127,18 @@ class HostShellRegistry:
 
         master_fd, slave_fd = pty.openpty()
         _set_winsize(master_fd, 24, 80)
-        os.set_blocking(master_fd, False)
+        os.setblocking(master_fd, False)
 
         env = os.environ.copy()
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
+        env["LIBRELANE_PROJECT_DIR"] = project_dir
+        env["LIBRELANE_WORKSPACE_ROOT"] = settings.workspace_root
 
-        if settings.host_terminal_use_nsenter:
-            shell = settings.host_terminal_shell
+        shell = settings.host_terminal_shell
+        if _should_use_nsenter(settings):
+            # Eski nsenter sürümlerinde --wd yok; cwd'yi kabuk icinde cd ile ayarla.
+            inner = f"cd {shlex.quote(project_dir)} && exec {shlex.quote(shell)} -l"
             cmd = [
                 "nsenter",
                 "-t",
@@ -119,13 +149,15 @@ class HostShellRegistry:
                 "-i",
                 "-p",
                 "-F",
-                "--wd",
-                cwd,
+                "--",
                 shell,
-                "-l",
+                "-lc",
+                inner,
             ]
+            popen_cwd = None
         else:
-            cmd = [settings.host_terminal_shell, "-l"]
+            cmd = [shell, "-l"]
+            popen_cwd = cwd
 
         try:
             proc = subprocess.Popen(
@@ -133,7 +165,7 @@ class HostShellRegistry:
                 stdin=slave_fd,
                 stdout=slave_fd,
                 stderr=slave_fd,
-                cwd=cwd,
+                cwd=popen_cwd,
                 env=env,
                 start_new_session=True,
             )
@@ -239,11 +271,17 @@ def host_terminal_status() -> dict:
     settings = get_settings()
     if not settings.enable_host_terminal:
         return {"available": False, "mode": "disabled", "max_sessions": settings.max_host_terminal_sessions}
-    mode = "host" if settings.host_terminal_use_nsenter else "container"
+    if _should_use_nsenter(settings):
+        mode = "host"
+    elif _running_in_container():
+        mode = "container"
+    else:
+        mode = "container"
     return {
         "available": True,
         "mode": mode,
         "shell": settings.host_terminal_shell,
         "max_sessions": settings.max_host_terminal_sessions,
         "open_sessions": len(registry.list_open()),
+        "container_cwd": settings.host_terminal_container_cwd if _running_in_container() else None,
     }

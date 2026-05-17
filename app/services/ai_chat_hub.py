@@ -115,7 +115,7 @@ class AIChatHub:
         last_reply = ""
         try:
             stream_ok = False
-            async for part in aiter_chat_stream(message, history, max_tokens=900, mode=mode):
+            async for part in aiter_chat_stream(message, history, mode=mode):
                 stream_ok = True
                 th = part.get("thinking")
                 co = part.get("content")

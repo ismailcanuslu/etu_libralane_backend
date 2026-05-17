@@ -188,7 +188,8 @@ async def execute_job(job_id: str) -> None:
             )
 
             try:
-                downloaded = storage.download_prefix(
+                downloaded = await asyncio.to_thread(
+                    storage.download_prefix,
                     job.project_id,
                     "",
                     workdir,
@@ -230,12 +231,22 @@ async def execute_job(job_id: str) -> None:
             if _is_cancelled(job_id):
                 return
 
-            # Container oluştur
+            await broker.publish(
+                job_id,
+                "status",
+                {
+                    "status": "running",
+                    "message": f"Runner hazırlanıyor ({spec.image})…",
+                },
+            )
+
+            # Container oluştur (Docker SDK bloklayıcı — event loop'u kilitlemesin)
             try:
-                container = create_container(
-                    image=spec.image,
-                    cmd=command,
-                    host_workdir=workdir,
+                container = await asyncio.to_thread(
+                    create_container,
+                    spec.image,
+                    command,
+                    workdir,
                     env=_runner_env(spec),
                     extra_volumes=_runner_extra_volumes(spec),
                 )

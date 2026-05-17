@@ -20,6 +20,8 @@ class OllamaPrefs:
     container_name: str = ""
     host_start_command: str = ""
     ready_timeout_seconds: int = 60
+    # Ollama num_predict: dusunce + yanit ortak; -1 = baglam dolana kadar
+    chat_max_tokens: int = -1
 
 
 def _prefs_file_path() -> Path:
@@ -53,6 +55,7 @@ def load_ollama_prefs() -> OllamaPrefs:
         if key in raw:
             base[key] = raw[key]
     try:
+        chat_max = int(base.get("chat_max_tokens", OllamaPrefs.chat_max_tokens))
         return OllamaPrefs(
             base_url=str(base["base_url"]).strip() or OllamaPrefs.base_url,
             model=str(base["model"]).strip() or OllamaPrefs.model,
@@ -61,6 +64,7 @@ def load_ollama_prefs() -> OllamaPrefs:
             container_name=str(base["container_name"] or ""),
             host_start_command=str(base["host_start_command"] or ""),
             ready_timeout_seconds=int(base["ready_timeout_seconds"]),
+            chat_max_tokens=chat_max,
         )
     except (TypeError, ValueError):
         return OllamaPrefs()
@@ -90,6 +94,7 @@ def merge_and_save_ollama_prefs(updates: dict[str, Any]) -> OllamaPrefs:
         container_name=str(d["container_name"] or ""),
         host_start_command=str(d["host_start_command"] or ""),
         ready_timeout_seconds=int(d["ready_timeout_seconds"]),
+        chat_max_tokens=int(d.get("chat_max_tokens", OllamaPrefs.chat_max_tokens)),
     )
     save_ollama_prefs(merged)
     return merged

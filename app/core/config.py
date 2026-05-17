@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     enable_host_terminal: bool = True
     host_terminal_use_nsenter: bool = True
     host_terminal_shell: str = "/bin/bash"
+    # Container icinde serbest terminal baslangic dizini (varsayilan: /)
+    host_terminal_container_cwd: str = "/"
     max_host_terminal_sessions: int = 4
 
 
