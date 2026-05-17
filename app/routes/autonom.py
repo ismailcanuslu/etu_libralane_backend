@@ -44,7 +44,7 @@ def preview_campaign(req: AutonomPreviewRequest):
 
 
 @router.post("/campaigns")
-def start_campaign(req: AutonomCampaignRequest):
+async def start_campaign(req: AutonomCampaignRequest):
     try:
         validated: AutonomCampaignSpec = validate_spec(req.spec)  # type: ignore[arg-type]
         spec_json = spec_to_json(validated)
@@ -117,7 +117,7 @@ async def stream_campaign(campaign_id: str, request: Request):
 
 
 @router.post("/campaigns/{campaign_id}/cancel")
-def cancel_campaign_route(campaign_id: str):
+async def cancel_campaign_route(campaign_id: str):
     campaign = autonom_repo.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="campaign not found")
