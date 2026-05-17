@@ -47,23 +47,7 @@ def _write_if_missing(path: Path, content: str) -> bool:
     return True
 
 
-def scaffold_openlane_project(project_id: str) -> list[str]:
-    """
-    Proje boşsa Caravel user project uyumlu iskelet oluşturur.
-    Oluşturulan dosya yollarını döndürür.
-    """
-    base = project_dir(project_id, create=True)
-    existing = list(base.rglob("*"))
-    has_user_files = any(
-        p.is_file()
-        and not p.relative_to(base).as_posix().startswith("_jobs/")
-        for p in existing
-    )
-    if has_user_files:
-        return []
-
-    created: list[str] = []
-
+def _caravel_openlane_configs() -> tuple[dict, dict]:
     wrapper_config = {
         "DESIGN_NAME": CARAVEL_WRAPPER_DESIGN,
         "VERILOG_FILES": [
@@ -81,7 +65,6 @@ def scaffold_openlane_project(project_id: str) -> list[str]:
         "SYNTH_READ_BLACKBOX_LIB": True,
         "RUN_CVC": 0,
     }
-
     module_config = {
         "DESIGN_NAME": CARAVEL_USER_MODULE_DESIGN,
         "VERILOG_FILES": [
@@ -94,6 +77,88 @@ def scaffold_openlane_project(project_id: str) -> list[str]:
         "PL_TARGET_DENSITY": "0.35",
         "DESIGN_IS_CORE": True,
     }
+    return wrapper_config, module_config
+
+
+def _caravel_flow_templates() -> list[tuple[str, str]]:
+    wrapper_config, module_config = _caravel_openlane_configs()
+    return [
+        (
+            f"openlane/{CARAVEL_WRAPPER_DESIGN}/config.json",
+            json.dumps(wrapper_config, indent=2) + "\n",
+        ),
+        (
+            f"openlane/{CARAVEL_USER_MODULE_DESIGN}/config.json",
+            json.dumps(module_config, indent=2) + "\n",
+        ),
+        (
+            f"openlane/{CARAVEL_WRAPPER_DESIGN}/pin_order.cfg",
+            "# Caravel user_project_wrapper — I/O pad sirasi (harness ile uyumlu)\n"
+            "# Tam liste: caravel_user_project pin_order\n",
+        ),
+        (
+            f"openlane/{CARAVEL_WRAPPER_DESIGN}/interactive.tcl",
+            f"""# Caravel — wrapper / padframe (tam cip icin harness gerekir)
+# Ornek: https://github.com/efabless/caravel/blob/master/openlane/chip_io/interactive.tcl
+
+puts "INFO: Bu dosya tam Caravel harness ile kullanilir."
+puts "INFO: Once user_project_wrapper harden; sonra harness repo ile birlestirin."
+
+if {{[info exists ::env(DESIGN_NAME)]}} {{
+    puts "DESIGN_NAME=$::env(DESIGN_NAME)"
+}}
+""",
+        ),
+        (
+            "flow.tcl",
+            """# OpenLane 1 — Caravel user project (runner /work kokunden)
+if {[info exists ::env(OPENLANE_ROOT)] && [file exists $::env(OPENLANE_ROOT)/flow.tcl]} {
+    source $::env(OPENLANE_ROOT)/flow.tcl
+} elseif {[file exists /openlane/flow.tcl]} {
+    source /openlane/flow.tcl
+} else {
+    puts stderr "flow.tcl: OPENLANE_ROOT veya /openlane/flow.tcl bulunamadi"
+    exit 2
+}
+""",
+        ),
+    ]
+
+
+def ensure_missing_caravel_flow_files(project_id: str) -> list[str]:
+    """
+    Mevcut projede Caravel RTL varsa eksik flow.tcl / openlane config dosyalarini yazar.
+    Eski (yalnizca src/*.v) projeleri OpenLane1 Flow'a hazirlar.
+    """
+    base = project_dir(project_id, create=True)
+    rtl_dir = base / CARAVEL_RTL_DIR
+    if not rtl_dir.is_dir() and not (base / "src").is_dir():
+        return []
+
+    created: list[str] = []
+    for rel, body in _caravel_flow_templates():
+        path = base / rel
+        if _write_if_missing(path, body):
+            created.append(rel)
+    return created
+
+
+def scaffold_openlane_project(project_id: str) -> list[str]:
+    """
+    Proje boşsa Caravel user project uyumlu iskelet oluşturur.
+    Oluşturulan dosya yollarını döndürür.
+    """
+    base = project_dir(project_id, create=True)
+    existing = list(base.rglob("*"))
+    has_user_files = any(
+        p.is_file()
+        and not p.relative_to(base).as_posix().startswith("_jobs/")
+        for p in existing
+    )
+    if has_user_files:
+        return []
+
+    created: list[str] = []
 
     templates: list[tuple[str, str]] = [
         (
@@ -299,45 +364,7 @@ module tb_user_project_wrapper;
 endmodule
 """,
         ),
-        (
-            f"openlane/{CARAVEL_WRAPPER_DESIGN}/config.json",
-            json.dumps(wrapper_config, indent=2) + "\n",
-        ),
-        (
-            f"openlane/{CARAVEL_USER_MODULE_DESIGN}/config.json",
-            json.dumps(module_config, indent=2) + "\n",
-        ),
-        (
-            f"openlane/{CARAVEL_WRAPPER_DESIGN}/pin_order.cfg",
-            "# Caravel user_project_wrapper — I/O pad sirasi (harness ile uyumlu)\n"
-            "# Tam liste: caravel_user_project pin_order\n",
-        ),
-        (
-            f"openlane/{CARAVEL_WRAPPER_DESIGN}/interactive.tcl",
-            f"""# Caravel — wrapper / padframe (tam cip icin harness gerekir)
-# Ornek: https://github.com/efabless/caravel/blob/master/openlane/chip_io/interactive.tcl
-
-puts "INFO: Bu dosya tam Caravel harness ile kullanilir."
-puts "INFO: Once user_project_wrapper harden; sonra harness repo ile birlestirin."
-
-if {{[info exists ::env(DESIGN_NAME)]}} {{
-    puts "DESIGN_NAME=$::env(DESIGN_NAME)"
-}}
-""",
-        ),
-        (
-            "flow.tcl",
-            """# OpenLane 1 — Caravel user project (runner /work kokunden)
-if {[info exists ::env(OPENLANE_ROOT)] && [file exists $::env(OPENLANE_ROOT)/flow.tcl]} {
-    source $::env(OPENLANE_ROOT)/flow.tcl
-} elseif {[file exists /openlane/flow.tcl]} {
-    source /openlane/flow.tcl
-} else {
-    puts stderr "flow.tcl: OPENLANE_ROOT veya /openlane/flow.tcl bulunamadi"
-    exit 2
-}
-""",
-        ),
+        *_caravel_flow_templates(),
         (
             "Makefile",
             f"""# Yerel simülasyon (Icarus) — Caravel RTL

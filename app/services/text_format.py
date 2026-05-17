@@ -82,6 +82,10 @@ def normalize_model_markdown(text: str | None) -> str | None:
     s = re.sub(r"\n(#{1,6}\s)", r"\n\n\1", s)
     s = re.sub(r"\n([-*+]\s)", r"\n\n\1", s)
     s = re.sub(r"\n(\d+\.\s)", r"\n\n\1", s)
+    s = re.sub(r"\n(>\s)", r"\n\n\1", s)
+    s = re.sub(r"\n(```)", r"\n\n\1", s)
+    s = re.sub(r"(```[^\n]*\n[\s\S]*?```)\n([^\n])", r"\1\n\n\2", s)
+    s = re.sub(r"\n(\|.+\|)\n", r"\n\n\1\n", s)
     # Fazla bos satirlari sinirla
-    s = re.sub(r"\n{3,}", "\n\n", s)
+    s = re.sub(r"\n{3,}", r"\n\n", s)
     return s.strip()

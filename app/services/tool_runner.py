@@ -23,6 +23,8 @@ from app.models.job import JobStatus
 from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.layout_preview import FLOW_LAYOUT_PNG_NAME, generate_flow_layout_png_preview
+from app.services.openlane_layout import flow_input_keys, resolve_design_name
+from app.services.project_scaffold import ensure_missing_caravel_flow_files
 from app.services.runner import (
     create_container,
     interrupt_container_by_id,
@@ -107,13 +109,20 @@ def _needs_workspace_files(spec: ToolSpec) -> bool:
     return spec.kind == "flow" or spec.requires_verilog or spec.requires_config
 
 
-def _has_config_file(paths: list[str]) -> bool:
-    return any(
+def _has_config_file(paths: list[str], workdir: str | None = None) -> bool:
+    if any(
         path.endswith("config.json")
         or path.endswith("config.tcl")
-        or path.split("/")[-1] in {"config.json", "config.tcl"}
+        or path.replace("\\", "/").split("/")[-1] in {"config.json", "config.tcl"}
         for path in paths
-    )
+    ):
+        return True
+    if not workdir or not os.path.isdir(workdir):
+        return False
+    for root, _, files in os.walk(workdir):
+        if any(name in ("config.json", "config.tcl") for name in files):
+            return True
+    return False
 
 
 def _runner_env(spec: ToolSpec) -> dict[str, str]:
@@ -240,6 +249,32 @@ async def execute_job(job_id: str) -> None:
                 except json.JSONDecodeError:
                     input_keys = None
 
+            if spec.kind == "flow":
+                repaired = await asyncio.to_thread(
+                    ensure_missing_caravel_flow_files,
+                    job.project_id,
+                )
+                if repaired:
+                    await broker.publish(
+                        job_id,
+                        "status",
+                        {
+                            "status": "preparing",
+                            "message": (
+                                "Eksik Caravel/OpenLane dosyalari eklendi: "
+                                + ", ".join(repaired[:5])
+                                + ("…" if len(repaired) > 5 else "")
+                            ),
+                        },
+                    )
+                design = resolve_design_name(job.project_id)
+                mandatory = flow_input_keys(job.project_id, design)
+                if mandatory:
+                    if input_keys is None:
+                        input_keys = mandatory
+                    else:
+                        input_keys = sorted(set(input_keys) | set(mandatory))
+
             try:
                 if input_keys:
                     downloaded = await asyncio.to_thread(
@@ -284,10 +319,14 @@ async def execute_job(job_id: str) -> None:
                     await _fail_job(job_id, message="Proje workspace'inde .v dosyası bulunamadı.")
                     return
 
-            if spec.requires_config and not _has_config_file(downloaded):
+            if spec.requires_config and not _has_config_file(downloaded, workdir):
                 await _fail_job(
                     job_id,
-                    message="Proje workspace'inde config.json veya config.tcl bulunamadı.",
+                    message=(
+                        "Proje workspace'inde config.json veya config.tcl bulunamadı. "
+                        "Caravel icin openlane/user_project_wrapper/config.json ve flow.tcl "
+                        "gerekir; dosya onizlemede bu yollarin secili oldugundan emin olun."
+                    ),
                 )
                 return
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.core.workspace_paths import project_dir
 from app.services.caravel_layout import (
+    CARAVEL_USER_MODULE_DESIGN,
     CARAVEL_WRAPPER_DESIGN,
     find_caravel_openlane_design,
     has_caravel_scaffold,
@@ -36,10 +37,46 @@ def find_openlane_design(project_id: str) -> str | None:
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1:
-        return candidates[0]
+        for preferred in (CARAVEL_WRAPPER_DESIGN, CARAVEL_USER_MODULE_DESIGN):
+            if preferred in candidates:
+                return preferred
+        return sorted(candidates)[0]
     if (openlane_root / "config.json").is_file():
         return design_slug_from_project(project_id)
     return None
+
+
+def flow_input_keys(project_id: str, design_name: str | None = None) -> list[str]:
+    """OpenLane1 Flow job workspace icin zorunlu dosya anahtarlari (Caravel oncelikli)."""
+    design = resolve_design_name(project_id, design_name)
+    base = project_dir(project_id)
+    keys: list[str] = []
+
+    def add_if_file(rel: str) -> None:
+        if (base / rel).is_file():
+            keys.append(rel)
+
+    add_if_file("flow.tcl")
+    openlane_root = base / "openlane"
+    if openlane_root.is_dir():
+        for cfg in sorted(openlane_root.rglob("config.json")):
+            keys.append(cfg.relative_to(base).as_posix())
+        for cfg in sorted(openlane_root.rglob("config.tcl")):
+            keys.append(cfg.relative_to(base).as_posix())
+    add_if_file(f"openlane/{design}/pin_order.cfg")
+    add_if_file(f"openlane/{design}/interactive.tcl")
+
+    rtl = base / "verilog" / "rtl"
+    if rtl.is_dir():
+        for path in sorted(rtl.glob("*.v")):
+            keys.append(path.relative_to(base).as_posix())
+    else:
+        src = base / "src"
+        if src.is_dir():
+            for path in sorted(src.glob("*.v")):
+                keys.append(path.relative_to(base).as_posix())
+
+    return sorted(set(keys))
 
 
 def resolve_design_name(project_id: str, explicit: str | None = None) -> str:

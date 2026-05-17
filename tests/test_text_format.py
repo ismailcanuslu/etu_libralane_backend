@@ -35,3 +35,11 @@ def test_normalize_markdown_headers() -> None:
     out = normalize_model_markdown(raw)
     assert out is not None
     assert "\n\n## Adim 1" in out
+
+
+def test_normalize_markdown_code_fence_spacing() -> None:
+    raw = "Metin\n```python\nx = 1\n```\nSon"
+    out = normalize_model_markdown(raw)
+    assert out is not None
+    assert "\n\n```python" in out
+    assert "```\n\nSon" in out

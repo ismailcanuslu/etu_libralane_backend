@@ -9,9 +9,11 @@ from app.services.caravel_layout import (
     has_caravel_scaffold,
 )
 from app.services.openlane_layout import resolve_design_name, verilog_glob_shell_var
+from app.services.openlane_layout import flow_input_keys
 from app.services.project_scaffold import (
     GUIDE_FILENAME,
     ensure_caravel_guide,
+    ensure_missing_caravel_flow_files,
     scaffold_openlane_project,
 )
 
@@ -66,6 +68,30 @@ class CaravelScaffoldTests(unittest.TestCase):
     def test_verilog_glob_prefers_caravel_rtl(self) -> None:
         script = verilog_glob_shell_var()
         self.assertIn("verilog/rtl", script)
+
+    def test_ensure_missing_flow_files_for_legacy_rtl(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_id = "legacy-flow"
+            base = Path(tmp) / project_id
+            rtl = base / "verilog/rtl"
+            rtl.mkdir(parents=True)
+            (rtl / "user_project_wrapper.v").write_text("// rtl\n", encoding="utf-8")
+
+            with patch("app.services.project_scaffold.project_dir", return_value=base):
+                created = ensure_missing_caravel_flow_files(project_id)
+
+            self.assertIn("flow.tcl", created)
+            self.assertIn("openlane/user_project_wrapper/config.json", created)
+            self.assertTrue((base / "openlane/user_project_wrapper/config.json").is_file())
+
+            with (
+                patch("app.services.openlane_layout.project_dir", return_value=base),
+                patch("app.services.caravel_layout.project_dir", return_value=base),
+            ):
+                keys = flow_input_keys(project_id)
+            self.assertIn("flow.tcl", keys)
+            self.assertIn("openlane/user_project_wrapper/config.json", keys)
+            self.assertTrue(any(k.endswith(".v") for k in keys))
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ import shlex
 
 from app.core.config import get_settings
 from app.core import storage
-from app.services.openlane_layout import resolve_design_name
+from app.services.openlane_layout import flow_input_keys, resolve_design_name
 from app.services.pdk_info import get_pdk_runtime_info
 from app.tools_catalog import build_tool_command, get_tool
 
@@ -48,6 +48,12 @@ def _match_patterns(keys: list[str], patterns: list[str]) -> list[str]:
             elif pattern in keys:
                 found.append(pattern)
     return sorted(set(found))
+
+
+def _openlane_flow_default_files(project_id: str, matched: list[str]) -> list[str]:
+    """Flow oncesi zorunlu Caravel dosyalarini varsayilan secime ekle."""
+    mandatory = set(flow_input_keys(project_id))
+    return sorted(set(matched) | mandatory)
 
 
 def _simulation_default_files(keys: list[str], matched: list[str]) -> list[str]:
@@ -106,11 +112,12 @@ def build_run_preview(
                 "simülasyon yalnızca tb/tb_*.v kullanır. counter_tb'yi listeden çıkarabilirsiniz."
             )
 
-    default_input_files = (
-        _simulation_default_files(keys, input_files)
-        if action == "simulation"
-        else list(input_files)
-    )
+    if action == "simulation":
+        default_input_files = _simulation_default_files(keys, input_files)
+    elif action == "openlane1-flow":
+        default_input_files = _openlane_flow_default_files(project_id, input_files)
+    else:
+        default_input_files = list(input_files)
 
     pdk = get_pdk_runtime_info()
     job_workspace_template = f"{settings.jobs_host_dir}/<job_id>/workspace"
