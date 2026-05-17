@@ -67,7 +67,11 @@ def verilog_glob_shell_var() -> str:
 def simulation_verilog_shell() -> str:
     return (
         f"{verilog_glob_shell_var()}; "
-        'TB=""; if ls tb/tb_*.v >/dev/null 2>&1; then TB=tb/tb_*.v; '
-        'elif ls tb_*.v >/dev/null 2>&1; then TB=tb_*.v; else echo "no tb_*.v"; exit 1; fi; '
-        'echo "$VF $TB"'
+        'INC=""; if ls verilog/rtl/*.v >/dev/null 2>&1; then INC="-Iverilog/rtl"; '
+        'elif ls src/*.v >/dev/null 2>&1; then INC="-Isrc"; fi; '
+        'TB=""; if ls tb/*.v >/dev/null 2>&1; then TB=tb/*.v; '
+        'elif ls tb/tb_*.v >/dev/null 2>&1; then TB=tb/tb_*.v; '
+        'elif ls tb/*_tb.v >/dev/null 2>&1; then TB=tb/*_tb.v; '
+        'elif ls tb_*.v >/dev/null 2>&1; then TB=tb_*.v; '
+        'else echo "no testbench under tb/"; exit 1; fi'
     )

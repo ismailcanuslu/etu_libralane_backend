@@ -130,7 +130,7 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
             f"{simulation_verilog_shell()}; "
             "echo \"[librelane] RTL=$VF TB=$TB\"; "
             "echo '[librelane] iverilog derleniyor...'; "
-            "iverilog -o sim.vvp $VF $TB; "
+            "iverilog -g2012 $INC -o sim.vvp $VF $TB; "
             "echo '[librelane] vvp calistiriliyor (max 600s)...'; "
             "if command -v timeout >/dev/null 2>&1; then "
             "timeout --kill-after=15 600 vvp sim.vvp; "
