@@ -45,12 +45,21 @@ def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
     args = ""
     if extra_args:
         args = " " + " ".join(shlex.quote(value) for value in extra_args)
+    design = shlex.quote(design_name)
+    # Proje kokundeki flow.tcl genelde Tcl kaynak dosyasidir (+x degil); ./flow.tcl Permission denied verir.
+    # efabless/openlane imajinda PATH'teki flow.tcl openlane/<design>/config.json ile calisir.
     return (
         "set -e; "
-        "if [ -f ./flow.tcl ]; then FLOW=./flow.tcl; "
-        "elif [ -f flow.tcl ]; then FLOW=flow.tcl; "
-        "else echo 'flow.tcl gerekli'; exit 2; fi; "
-        f'./"$FLOW" -design {shlex.quote(design_name)}{args}'
+        "if command -v flow.tcl >/dev/null 2>&1; then "
+        f"exec flow.tcl -design {design}{args}; "
+        "fi; "
+        "if [ -f flow.tcl ]; then "
+        "if [ -x flow.tcl ] && head -1 flow.tcl | grep -q '^#!'; then "
+        f"exec ./flow.tcl -design {design}{args}; "
+        "fi; "
+        f"exec tclsh flow.tcl -design {design}{args}; "
+        "fi; "
+        "echo 'flow.tcl gerekli (OpenLane runner veya proje flow.tcl)'; exit 2"
     )
 
 

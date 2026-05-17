@@ -111,13 +111,14 @@ if {{[info exists ::env(DESIGN_NAME)]}} {{
         ),
         (
             "flow.tcl",
-            """# OpenLane 1 — Caravel user project (runner /work kokunden)
-if {[info exists ::env(OPENLANE_ROOT)] && [file exists $::env(OPENLANE_ROOT)/flow.tcl]} {
+            """# OpenLane 1 — Caravel user project (yerel / manuel calistirma)
+# LibreLane web runner: PATH uzerindeki `flow.tcl -design <name>` kullanilir.
+if {[info exists ::env(OPENLANE_ROOT)] && $::env(OPENLANE_ROOT) ne "" && [file exists $::env(OPENLANE_ROOT)/flow.tcl]} {
     source $::env(OPENLANE_ROOT)/flow.tcl
 } elseif {[file exists /openlane/flow.tcl]} {
     source /openlane/flow.tcl
 } else {
-    puts stderr "flow.tcl: OPENLANE_ROOT veya /openlane/flow.tcl bulunamadi"
+    puts stderr "flow.tcl: OPENLANE_ROOT veya /openlane/flow.tcl bulunamadi (runner'da PATH flow.tcl kullanin)"
     exit 2
 }
 """,

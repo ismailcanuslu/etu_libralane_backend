@@ -3,7 +3,7 @@ import os
 import unittest
 
 from app.openlane1_manifest import load_openlane1_manifest, manifest_hub_keys
-from app.tools_catalog import TOOL_CATALOG, get_tool, list_tools
+from app.tools_catalog import TOOL_CATALOG, _flow_script, build_tool_command, get_tool, list_tools
 
 WEB_TOOL_IDS = frozenset(
     {
@@ -75,6 +75,21 @@ class ToolsCatalogTests(unittest.TestCase):
         self.assertTrue(spec.requires_verilog)
         self.assertTrue(spec.requires_config)
         self.assertEqual(spec.group, "build")
+
+    def test_flow_script_uses_path_flow_not_dot_slash(self) -> None:
+        script = _flow_script("user_project_wrapper")
+        self.assertIn("command -v flow.tcl", script)
+        self.assertIn("exec flow.tcl -design 'user_project_wrapper'", script)
+        self.assertNotIn("././flow.tcl", script)
+        self.assertNotIn('./"$FLOW"', script)
+
+    def test_build_tool_command_for_flow(self) -> None:
+        spec = get_tool("openlane1-flow")
+        assert spec is not None
+        cmd = build_tool_command(spec, design_name="user_project_wrapper")
+        self.assertEqual(cmd[0], "bash")
+        self.assertEqual(cmd[1], "-lc")
+        self.assertIn("exec flow.tcl -design 'user_project_wrapper'", cmd[2])
 
     def test_all_catalog_tools_use_openlane_runner(self) -> None:
         expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")
