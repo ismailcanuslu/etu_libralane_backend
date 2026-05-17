@@ -10,11 +10,15 @@ from app.routes.run import router as run_router
 from app.routes.tools import router as tools_router
 from app.routes.files import router as files_router
 from app.routes.terminal import router as terminal_router
+from app.routes.layout import router as layout_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    from app.services.tool_runner import reconcile_stale_jobs
+
+    await reconcile_stale_jobs()
     yield
 
 
@@ -33,6 +37,7 @@ app.include_router(jobs_router)
 app.include_router(ai_router)
 app.include_router(files_router)
 app.include_router(terminal_router)
+app.include_router(layout_router)
 
 
 @app.get("/")

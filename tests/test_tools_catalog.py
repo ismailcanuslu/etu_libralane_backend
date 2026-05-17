@@ -5,11 +5,23 @@ import unittest
 from app.openlane1_manifest import load_openlane1_manifest, manifest_hub_keys
 from app.tools_catalog import TOOL_CATALOG, get_tool, list_tools
 
+WEB_TOOL_IDS = frozenset(
+    {
+        "smoke-test",
+        "lint",
+        "simulation",
+        "synthesis",
+        "verification",
+        "openlane1-flow",
+    }
+)
+
 
 class ToolsCatalogTests(unittest.TestCase):
-    def test_manifest_has_sixteen_hub_keys(self) -> None:
+    def test_manifest_has_fifteen_hub_keys(self) -> None:
         keys = manifest_hub_keys()
-        self.assertEqual(len(keys), 16)
+        self.assertEqual(len(keys), 15)
+        self.assertNotIn("antmicro_yosys", keys)
         self.assertEqual(
             keys,
             [
@@ -21,7 +33,6 @@ class ToolsCatalogTests(unittest.TestCase):
                 "drcu",
                 "opensta",
                 "yosys",
-                "antmicro_yosys",
                 "magic",
                 "openroad_app",
                 "padring",
@@ -43,20 +54,18 @@ class ToolsCatalogTests(unittest.TestCase):
             self.assertIn("probe_argv", entry)
             self.assertIn("smoke_argv", entry)
 
-    def test_openlane1_smoke_and_probe_actions_exist(self) -> None:
-        for hub_key in manifest_hub_keys():
-            smoke = get_tool(f"openlane1-{hub_key}")
-            probe = get_tool(f"openlane1-{hub_key}-probe")
-            self.assertIsNotNone(smoke, hub_key)
-            self.assertIsNotNone(probe, hub_key)
-            assert smoke is not None
-            assert probe is not None
-            self.assertEqual(
-                smoke.image,
-                os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64"),
-            )
-            self.assertEqual(smoke.group, "openlane1")
-            self.assertEqual(probe.kind, "probe")
+    def test_web_catalog_has_only_user_facing_tools(self) -> None:
+        catalog_ids = {spec.id for spec in list_tools()}
+        self.assertEqual(catalog_ids, WEB_TOOL_IDS)
+
+    def test_no_openlane1_smoke_or_probe_in_catalog(self) -> None:
+        for tool_id in TOOL_CATALOG:
+            self.assertFalse(tool_id.startswith("openlane1-") and tool_id != "openlane1-flow", tool_id)
+            self.assertFalse(tool_id.endswith("-probe"), tool_id)
+
+    def test_formal_removed_from_catalog(self) -> None:
+        self.assertNotIn("formal", TOOL_CATALOG)
+        self.assertIsNone(get_tool("formal"))
 
     def test_openlane1_flow_action(self) -> None:
         spec = get_tool("openlane1-flow")
@@ -65,9 +74,7 @@ class ToolsCatalogTests(unittest.TestCase):
         self.assertEqual(spec.kind, "flow")
         self.assertTrue(spec.requires_verilog)
         self.assertTrue(spec.requires_config)
-
-    def test_catalog_size(self) -> None:
-        self.assertGreaterEqual(len(TOOL_CATALOG), 16 * 2 + 6)
+        self.assertEqual(spec.group, "build")
 
     def test_all_catalog_tools_use_openlane_runner(self) -> None:
         expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")
@@ -78,12 +85,13 @@ class ToolsCatalogTests(unittest.TestCase):
                 f"{spec.id} beklenen runner imajini kullanmiyor",
             )
 
-    def test_core_tools_use_openlane_runner(self) -> None:
+    def test_core_tools_enabled_and_use_openlane_runner(self) -> None:
         expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")
-        for action in ("smoke-test", "lint", "simulation", "synthesis", "verification", "formal"):
+        for action in ("smoke-test", "lint", "simulation", "synthesis", "verification"):
             spec = get_tool(action)
             self.assertIsNotNone(spec, action)
             assert spec is not None
+            self.assertTrue(spec.enabled, action)
             self.assertEqual(spec.image, expected)
 
     def test_manifest_json_is_parseable(self) -> None:
@@ -92,7 +100,7 @@ class ToolsCatalogTests(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / "app" / "openlane1_manifest.json"
         data = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(data["image"], "efabless/openlane:ci2504-dev-amd64")
-        self.assertEqual(len(data["tools"]), 16)
+        self.assertEqual(len(data["tools"]), 15)
 
 
 if __name__ == "__main__":

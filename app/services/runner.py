@@ -212,3 +212,23 @@ def interrupt_container_by_id(container_id: str, *, signal: str = "SIGINT") -> b
 
 def kill_container_by_id(container_id: str) -> bool:
     return interrupt_container_by_id(container_id, signal="SIGKILL")
+
+
+def kill_all_runner_containers() -> list[str]:
+    """Etiketli runner container'larina SIGINT gonderir ve kaldirir."""
+    cli = _client()
+    removed: list[str] = []
+    for container in cli.containers.list(all=True, filters={"label": "librelane.role=runner"}):
+        cid = container.id
+        if not cid:
+            continue
+        try:
+            container.kill(signal="SIGINT")
+        except (APIError, NotFound):
+            pass
+        try:
+            container.remove(force=True)
+            removed.append(cid)
+        except (APIError, NotFound):
+            pass
+    return removed

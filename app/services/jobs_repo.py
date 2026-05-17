@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Session, desc, select
+from sqlmodel import Session, desc, or_, select
 
 from app.core.db import session_scope
 from app.models.job import Job, JobStatus
@@ -13,12 +13,20 @@ def _detach(session: Session, job: Job) -> Job:
     return job
 
 
-def create_job(project_id: str, action: str, image: str, command: str) -> Job:
+def create_job(
+    project_id: str,
+    action: str,
+    image: str,
+    command: str,
+    *,
+    input_keys_json: str | None = None,
+) -> Job:
     job = Job(
         project_id=project_id,
         action=action,
         image=image,
         command=command,
+        input_keys_json=input_keys_json,
         status=JobStatus.QUEUED,
     )
     with session_scope() as session:
@@ -33,6 +41,19 @@ def get_job(job_id: str) -> Optional[Job]:
         if job is None:
             return None
         return _detach(session, job)
+
+
+def list_active_jobs(project_id: Optional[str] = None) -> List[Job]:
+    with session_scope() as session:
+        stmt = select(Job).where(
+            or_(Job.status == JobStatus.QUEUED, Job.status == JobStatus.RUNNING)
+        )
+        if project_id:
+            stmt = stmt.where(Job.project_id == project_id)
+        jobs = list(session.exec(stmt).all())
+        for job in jobs:
+            session.expunge(job)
+        return jobs
 
 
 def list_jobs(

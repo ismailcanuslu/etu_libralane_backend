@@ -75,15 +75,6 @@
       "notes": "Sentez araci."
     },
     {
-      "hub_key": "antmicro_yosys",
-      "label": "Antmicro Yosys",
-      "resolved_bins": ["yosys"],
-      "probe_argv": "-V",
-      "smoke_argv": "-V",
-      "enabled": true,
-      "notes": "Antmicro Yosys dagitimi; binary adi yosys olabilir."
-    },
-    {
       "hub_key": "magic",
       "label": "Magic",
       "resolved_bins": ["magic"],

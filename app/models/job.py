@@ -30,6 +30,8 @@ class Job(SQLModel, table=True):
     action: str
     image: str
     command: str
+    # JSON listesi: workspace'e kopyalanacak proje anahtarlari (bos = tum proje)
+    input_keys_json: Optional[str] = None
 
     status: JobStatus = Field(default=JobStatus.QUEUED, index=True)
     exit_code: Optional[int] = None

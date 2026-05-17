@@ -32,6 +32,7 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
     _ensure_chat_thinking_column()
+    _ensure_job_input_keys_column()
 
 
 def _ensure_chat_thinking_column() -> None:
@@ -46,6 +47,19 @@ def _ensure_chat_thinking_column() -> None:
         return
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE chat_history_messages ADD COLUMN thinking TEXT"))
+
+
+def _ensure_job_input_keys_column() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "jobs" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("jobs")}
+    if "input_keys_json" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE jobs ADD COLUMN input_keys_json TEXT"))
 
 
 @contextmanager

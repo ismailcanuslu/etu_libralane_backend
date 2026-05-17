@@ -11,7 +11,7 @@ from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.terminal_tabs import registry as terminal_registry
 from app.services.openlane_layout import resolve_design_name
-from app.services.tool_runner import cancel_job, execute_job
+from app.services.tool_runner import cancel_job, force_reset_jobs, schedule_execute_job
 from app.tools_catalog import build_tool_command, get_tool
 
 router = APIRouter(prefix="/run", tags=["run"])
@@ -22,6 +22,10 @@ class RunRequest(BaseModel):
     action: str = Field(min_length=1, max_length=64)
     design_name: Optional[str] = Field(default=None, max_length=128)
     args: Optional[List[str]] = None
+    input_files: Optional[List[str]] = Field(
+        default=None,
+        description="Job workspace'e kopyalanacak proje dosya anahtarlari; bos = tum proje",
+    )
 
 
 @router.post("")
@@ -41,15 +45,22 @@ async def start_run(req: RunRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    input_keys_json: str | None = None
+    if req.input_files:
+        cleaned = [k.strip() for k in req.input_files if isinstance(k, str) and k.strip()]
+        if cleaned:
+            input_keys_json = json.dumps(sorted(set(cleaned)))
+
     job = jobs_repo.create_job(
         project_id=req.project_id,
         action=spec.id,
         image=spec.image,
         command=json.dumps(command),
+        input_keys_json=input_keys_json,
     )
     terminal_registry.open(job.id, req.project_id, spec.id)
 
-    asyncio.create_task(execute_job(job.id))
+    schedule_execute_job(job.id)
 
     return {
         "job_id": job.id,
@@ -152,6 +163,21 @@ async def stream_run(job_id: str, request: Request):
             yield event.to_sse()
 
     return EventSourceResponse(event_generator())
+
+
+class RunResetRequest(BaseModel):
+    project_id: Optional[str] = Field(default=None, max_length=128)
+
+
+@router.post("/reset")
+async def reset_runs(req: RunResetRequest | None = None):
+    """Tum canli job'lari iptal eder (SIGINT), runner container'lari temizler, semaforu sifirlar."""
+    body = req or RunResetRequest()
+    project_id = body.project_id.strip() if body.project_id else None
+    if project_id == "":
+        project_id = None
+    result = await force_reset_jobs(project_id)
+    return {"ok": True, **result}
 
 
 @router.post("/{job_id}/cancel")

@@ -21,13 +21,16 @@ _OUTPUT_HINTS: dict[str, list[str]] = {
 }
 
 _INPUT_PATTERNS: dict[str, list[str]] = {
-    "synthesis": ["src/*.v", "*.v"],
-    "lint": ["src/*.v", "*.v"],
-    "verification": ["src/*.v", "*.v"],
-    "simulation": ["src/*.v", "*.v", "tb/tb_*.v", "tb_*.v"],
+    "synthesis": ["verilog/rtl/*.v", "src/*.v", "*.v"],
+    "lint": ["verilog/rtl/*.v", "src/*.v", "*.v"],
+    "verification": ["verilog/rtl/*.v", "src/*.v", "*.v"],
+    "simulation": ["verilog/rtl/*.v", "src/*.v", "*.v", "tb/tb_*.v", "tb_*.v"],
     "openlane1-flow": [
         "flow.tcl",
+        "openlane/user_project_wrapper/config.json",
         "openlane/*/config.json",
+        "verilog/rtl/*.v",
+        "verilog/rtl/user_project_wrapper.v",
         "src/*.v",
     ],
 }
@@ -79,7 +82,7 @@ def build_run_preview(
 
     warnings: list[str] = []
     if spec.requires_verilog and not any(k.endswith(".v") for k in keys):
-        warnings.append("Projede .v dosyası bulunamadı (src/ veya kök).")
+        warnings.append("Projede .v dosyası bulunamadı (verilog/rtl, src/ veya kök).")
     if spec.requires_config and not any(
         k.endswith("config.json") or k.endswith("config.tcl") for k in keys
     ):
@@ -105,6 +108,7 @@ def build_run_preview(
         "container_workdir": settings.jobs_workdir_in_runner,
         "pdk": pdk,
         "input_files": input_files,
+        "default_input_files": list(input_files),
         "output_hints": output_hints,
         "warnings": warnings,
         "requires_pdk": spec.requires_pdk,

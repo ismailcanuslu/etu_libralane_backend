@@ -57,10 +57,11 @@ def _stat_object(project_id: str, key: str) -> ObjectInfo:
 
 
 def ensure_project(project_id: str) -> None:
-    from app.services.project_scaffold import scaffold_openlane_project
+    from app.services.project_scaffold import ensure_caravel_guide, scaffold_openlane_project
 
     project_dir(project_id, create=True)
     scaffold_openlane_project(project_id)
+    ensure_caravel_guide(project_id)
 
 
 def ensure_bucket(bucket: str) -> None:
@@ -224,6 +225,25 @@ def download_prefix(
     exclude_prefixes: Iterable[str] = (),
 ) -> List[str]:
     return copy_project_to_dir(bucket, prefix, dst_dir, exclude_prefixes=exclude_prefixes)
+
+
+def download_keys(project_id: str, keys: Iterable[str], dst_dir: str) -> List[str]:
+    """Yalnizca secilen dosya anahtarlarini job workspace'ine kopyalar."""
+    written: List[str] = []
+    seen: set[str] = set()
+    for raw in keys:
+        key = validate_object_key(str(raw).strip())
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        src = object_path(project_id, key)
+        if not src.is_file():
+            continue
+        dst_path = os.path.join(dst_dir, key.replace("/", os.sep))
+        os.makedirs(os.path.dirname(dst_path) or dst_dir, exist_ok=True)
+        shutil.copy2(src, dst_path)
+        written.append(dst_path)
+    return written
 
 
 def upload_file(

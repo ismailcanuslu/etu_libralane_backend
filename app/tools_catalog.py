@@ -3,7 +3,6 @@ from dataclasses import dataclass, replace
 from typing import Dict, List, Literal
 
 from app.core.config import get_settings
-from app.openlane1_manifest import load_openlane1_manifest
 from app.services.openlane_layout import simulation_verilog_shell, verilog_glob_shell_var
 
 _settings = get_settings()
@@ -41,20 +40,6 @@ def _shell(script: str) -> List[str]:
     return ["sh", "-lc", script]
 
 
-def _resolve_binary_script(candidates: list[str], argv: str) -> str:
-    quoted_candidates = " ".join(shlex.quote(name) for name in candidates)
-    return (
-        "set -e; "
-        f"candidates={quoted_candidates}; "
-        "resolved=''; "
-        "for name in $candidates; do "
-        'if path=$(command -v "$name" 2>/dev/null); then resolved="$path"; break; fi; '
-        "done; "
-        '[ -n "$resolved" ] || { echo "binary bulunamadi"; exit 2; }; '
-        f'"$resolved" {shlex.quote(argv)}'
-    )
-
-
 def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
     args = ""
     if extra_args:
@@ -82,55 +67,26 @@ def build_tool_command(
 
 
 def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
-    catalog: Dict[str, ToolSpec] = {}
-    manifest = load_openlane1_manifest()
-    for entry in manifest["tools"]:
-        hub_key = entry["hub_key"]
-        candidates = entry["resolved_bins"]
-        notes = entry.get("notes") or ""
-        manifest_enabled = bool(entry.get("enabled", True))
-        base_enabled = manifest_enabled and bool(candidates)
-
-        smoke_id = f"openlane1-{hub_key}"
-        catalog[smoke_id] = ToolSpec(
-            id=smoke_id,
-            label=entry.get("label") or hub_key,
-            description=notes or f"OpenLane1 {hub_key} smoke testi.",
+    """Web katalogunda yalnizca tam OpenLane akisi; hub smoke/probe UI'dan kaldirildi."""
+    return {
+        "openlane1-flow": ToolSpec(
+            id="openlane1-flow",
+            label="OpenLane1 Flow",
+            description=(
+                "Caravel user_project_wrapper hardening: flow.tcl + "
+                "openlane/user_project_wrapper/config.json (sky130, tape-out yolu)."
+            ),
             image=_RUNNER,
-            cmd=_shell(_resolve_binary_script(candidates, entry["smoke_argv"])),
-            group="openlane1",
-            enabled=base_enabled,
-            kind="binary",
-        )
-
-        probe_id = f"openlane1-{hub_key}-probe"
-        catalog[probe_id] = ToolSpec(
-            id=probe_id,
-            label=f"{entry.get('label') or hub_key} Probe",
-            description=f"PATH uzerinde {hub_key} binary varligini dogrular.",
-            image=_RUNNER,
-            cmd=_shell(_resolve_binary_script(candidates, entry["probe_argv"])),
-            group="openlane1",
-            badge="Probe",
-            enabled=base_enabled,
-            kind="probe",
-        )
-
-    catalog["openlane1-flow"] = ToolSpec(
-        id="openlane1-flow",
-        label="OpenLane1 Flow",
-        description="OpenLane1 flow.tcl ile tam tasarim akisi (design adi ve flow.tcl gerekir).",
-        image=_RUNNER,
-        cmd=[],
-        group="build",
-        badge="PnR",
-        enabled=True,
-        kind="flow",
-        requires_verilog=True,
-        requires_config=True,
-        requires_pdk=True,
-    )
-    return catalog
+            cmd=[],
+            group="build",
+            badge="PnR",
+            enabled=True,
+            kind="flow",
+            requires_verilog=True,
+            requires_config=True,
+            requires_pdk=True,
+        ),
+    }
 
 
 TOOL_CATALOG: Dict[str, ToolSpec] = {
@@ -198,20 +154,6 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
             'yosys -p "read_verilog $VF; stat" && echo "VERIFY OK"'
         ),
         group="build",
-        requires_verilog=True,
-    ),
-    "formal": ToolSpec(
-        id="formal",
-        label="Formal Doğrulama",
-        description="efabless/openlane imajında SymbiYosys (sby) bulunmuyor.",
-        image=_RUNNER,
-        cmd=[
-            "sh",
-            "-lc",
-            "command -v sby >/dev/null 2>&1 || { echo 'SymbiYosys (sby) bulunamadi'; exit 2; }; echo 'formal: proje sby dosyasi gerekir'; exit 2",
-        ],
-        group="tools",
-        enabled=False,
         requires_verilog=True,
     ),
 }

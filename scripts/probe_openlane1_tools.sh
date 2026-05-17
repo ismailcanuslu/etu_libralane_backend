@@ -15,7 +15,6 @@ declare -A CANDIDATES=(
   [drcu]="drcu"
   [opensta]="opensta sta"
   [yosys]="yosys"
-  [antmicro_yosys]="yosys"
   [magic]="magic"
   [openroad_app]="openroad openroad_app"
   [padring]="padring"
@@ -34,7 +33,6 @@ declare -A PROBE_ARGV=(
   [drcu]="-version"
   [opensta]="-version"
   [yosys]="-V"
-  [antmicro_yosys]="-V"
   [magic]="-version"
   [openroad_app]="-version"
   [padring]="-h"
@@ -75,7 +73,7 @@ probe_in_container() {
   fi
   bin=\$(basename \"\$resolved\")
   case \"\$hub_key\" in
-    yosys|antmicro_yosys) probe_argv='-V' ;;
+    yosys) probe_argv='-V' ;;
     magic|opensta|replace|opendp|route|cugr|drcu|netgen|openroad_app) probe_argv='-version' ;;
     klayout) probe_argv='-v' ;;
     *) probe_argv='-h' ;;
@@ -90,7 +88,7 @@ json_escape() {
 }
 
 entries=()
-for hub_key in klayout replace opendp route cugr drcu opensta yosys antmicro_yosys magic openroad_app padring netgen vlogtoverilog openphysyn cvc; do
+for hub_key in klayout replace opendp route cugr drcu opensta yosys magic openroad_app padring netgen vlogtoverilog openphysyn cvc; do
   echo "Probing $hub_key..." >&2
   output="$(probe_in_container "$hub_key" "${CANDIDATES[$hub_key]}")"
   resolved_line="$(printf '%s\n' "$output" | awk -F: '/^RESOLVED:/{print substr($0,10); exit}')"
@@ -105,8 +103,6 @@ for hub_key in klayout replace opendp route cugr drcu opensta yosys antmicro_yos
       notes="Hub hedefi openroad_app; PATH uzerinde openroad."
     elif [ "$hub_key" = "opensta" ] && [ "$bin_name" = "sta" ]; then
       notes="Hub hedefi opensta; PATH uzerinde sta."
-    elif [ "$hub_key" = "antmicro_yosys" ]; then
-      notes="Antmicro Yosys dagitimi; binary adi yosys olabilir."
     fi
   else
     bin_name=""
