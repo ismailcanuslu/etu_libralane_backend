@@ -111,53 +111,31 @@ async def stream_container(container) -> AsyncIterator[LogLine]:
                 return
 
             try:
-                # demux=True → (stdout_bytes, stderr_bytes)
-                gen = container.attach(
-                    stream=True,
-                    logs=True,
-                    stdout=True,
-                    stderr=True,
-                    demux=True,
-                )
+                log_stream = container.logs(stream=True, follow=True)
             except APIError as e:
-                loop.call_soon_threadsafe(queue.put_nowait, LogLine("system", f"attach error: {e}"))
+                loop.call_soon_threadsafe(queue.put_nowait, LogLine("system", f"logs error: {e}"))
                 loop.call_soon_threadsafe(queue.put_nowait, None)
                 return
 
-            stdout_buf = b""
-            stderr_buf = b""
-            for chunk in gen:
-                if chunk is None:
+            line_buf = b""
+            for chunk in log_stream:
+                if not chunk:
                     continue
-                stdout_chunk, stderr_chunk = chunk if isinstance(chunk, tuple) else (chunk, None)
+                line_buf += chunk if isinstance(chunk, bytes) else bytes(chunk)
+                while b"\n" in line_buf:
+                    raw, line_buf = line_buf.split(b"\n", 1)
+                    text = raw.decode("utf-8", "replace").rstrip("\r")
+                    if not text:
+                        continue
+                    loop.call_soon_threadsafe(
+                        queue.put_nowait,
+                        LogLine("stdout", text),
+                    )
 
-                if stdout_chunk:
-                    stdout_buf += stdout_chunk
-                    while b"\n" in stdout_buf:
-                        line, stdout_buf = stdout_buf.split(b"\n", 1)
-                        loop.call_soon_threadsafe(
-                            queue.put_nowait,
-                            LogLine("stdout", line.decode("utf-8", "replace").rstrip("\r")),
-                        )
-                if stderr_chunk:
-                    stderr_buf += stderr_chunk
-                    while b"\n" in stderr_buf:
-                        line, stderr_buf = stderr_buf.split(b"\n", 1)
-                        loop.call_soon_threadsafe(
-                            queue.put_nowait,
-                            LogLine("stderr", line.decode("utf-8", "replace").rstrip("\r")),
-                        )
-
-            # Kalan tampon (newline'sız son parça)
-            if stdout_buf:
+            if line_buf.strip():
                 loop.call_soon_threadsafe(
                     queue.put_nowait,
-                    LogLine("stdout", stdout_buf.decode("utf-8", "replace").rstrip("\r")),
-                )
-            if stderr_buf:
-                loop.call_soon_threadsafe(
-                    queue.put_nowait,
-                    LogLine("stderr", stderr_buf.decode("utf-8", "replace").rstrip("\r")),
+                    LogLine("stdout", line_buf.decode("utf-8", "replace").rstrip("\r")),
                 )
         except Exception as e:  # noqa: BLE001
             loop.call_soon_threadsafe(queue.put_nowait, LogLine("system", f"reader exception: {e}"))
@@ -191,6 +169,15 @@ async def wait_container(container, timeout: Optional[int] = None) -> int:
             return -1
 
     return await loop.run_in_executor(None, _wait)
+
+
+def read_container_logs(container) -> str:
+    """Container bittikten sonra stdout+stderr (stream kacirdiyse)."""
+    try:
+        raw = container.logs(stdout=True, stderr=True, tail=500)
+        return raw.decode("utf-8", errors="replace")
+    except (APIError, NotFound):
+        return ""
 
 
 def remove_container(container) -> None:

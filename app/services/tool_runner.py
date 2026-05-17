@@ -27,6 +27,7 @@ from app.services.runner import (
     create_container,
     interrupt_container_by_id,
     kill_all_runner_containers,
+    read_container_logs,
     remove_container,
     stream_container,
     wait_container,
@@ -355,11 +356,22 @@ async def execute_job(job_id: str) -> None:
                     f"# job_id={job_id}\n# action={job.action}\n# image={job.image}\n"
                     f"# cmd={command}\n# started_at={_now_iso()}\n\n"
                 )
+                await broker.publish(
+                    job_id,
+                    "line",
+                    {
+                        "stream": "system",
+                        "line": f"container {container.id[:12]} — log akisi basliyor",
+                        "ts": _now_iso(),
+                    },
+                )
+                streamed_lines = 0
                 try:
                     async for line in stream_container(container):
                         if _is_cancelled(job_id):
                             interrupt_container_by_id(container.id, signal="SIGINT")
                             break
+                        streamed_lines += 1
                         formatted = f"[{line.stream}] {line.line}"
                         log_file.write(formatted + "\n")
                         await broker.publish(
@@ -374,6 +386,23 @@ async def execute_job(job_id: str) -> None:
                 exit_code = await wait_container(
                     container, timeout=_job_wait_timeout(job.action)
                 )
+
+                if streamed_lines == 0:
+                    post_logs = await asyncio.to_thread(read_container_logs, container)
+                    if post_logs.strip():
+                        log_file.write("\n# container logs (post-mortem)\n")
+                        for raw_line in post_logs.splitlines():
+                            log_file.write(f"[stdout] {raw_line}\n")
+                            await broker.publish(
+                                job_id,
+                                "line",
+                                {
+                                    "stream": "stdout",
+                                    "line": raw_line,
+                                    "ts": _now_iso(),
+                                },
+                            )
+
                 log_file.write(f"\n# exit_code={exit_code}\n# finished_at={_now_iso()}\n")
 
             remove_container(container)

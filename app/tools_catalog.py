@@ -123,14 +123,19 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         description="efabless/openlane imajında iverilog/vvp varsa testbench koşturur.",
         image=_RUNNER,
         cmd=_shell(
-            f"set -e; "
+            "set -e; "
+            "echo '[librelane] simulasyon basladi'; "
             "command -v iverilog >/dev/null 2>&1 && command -v vvp >/dev/null 2>&1 || "
-            "{{ echo 'iverilog/vvp efabless/openlane imajinda bulunamadi'; exit 2; }}; "
+            "{ echo '[librelane] iverilog/vvp bulunamadi (bash PATH?)'; exit 2; }; "
             f"{simulation_verilog_shell()}; "
+            "echo \"[librelane] RTL=$VF TB=$TB\"; "
+            "echo '[librelane] iverilog derleniyor...'; "
             "iverilog -o sim.vvp $VF $TB; "
+            "echo '[librelane] vvp calistiriliyor (max 600s)...'; "
             "if command -v timeout >/dev/null 2>&1; then "
             "timeout --kill-after=15 600 vvp sim.vvp; "
-            "else vvp sim.vvp; fi"
+            "else vvp sim.vvp; fi; "
+            "echo '[librelane] simulasyon bitti (exit='$?')"
         ),
         group="build",
         requires_verilog=True,
