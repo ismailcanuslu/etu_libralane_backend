@@ -1,0 +1,1410 @@
+{
+  "version": "mattvenn-openlane-master",
+  "generated_at": "2026-05-17T07:34:16.435906+00:00",
+  "source_url": "https://raw.githubusercontent.com/mattvenn/openlane/refs/heads/master/configuration/README.md",
+  "required_keys": [
+    "DESIGN_NAME",
+    "VERILOG_FILES",
+    "CLOCK_PERIOD",
+    "CLOCK_NET",
+    "CLOCK_PORT"
+  ],
+  "scaffold_recommended_keys": [
+    "DESIGN_NAME",
+    "VERILOG_FILES",
+    "CLOCK_PORT",
+    "CLOCK_PERIOD",
+    "FP_CORE_UTIL",
+    "PL_TARGET_DENSITY",
+    "DESIGN_IS_CORE"
+  ],
+  "categories": {
+    "required": {
+      "label_tr": "Zorunlu"
+    },
+    "synthesis": {
+      "label_tr": "Sentez"
+    },
+    "floorplanning": {
+      "label_tr": "Yerleşim planı"
+    },
+    "placement": {
+      "label_tr": "Yerleşim"
+    },
+    "cts": {
+      "label_tr": "CTS (saat ağacı)"
+    },
+    "routing": {
+      "label_tr": "Yönlendirme"
+    },
+    "magic": {
+      "label_tr": "Magic"
+    },
+    "lvs": {
+      "label_tr": "LVS"
+    },
+    "misc": {
+      "label_tr": "Diğer"
+    },
+    "flow_control": {
+      "label_tr": "Akış kontrolü"
+    },
+    "checkers": {
+      "label_tr": "Denetleyiciler"
+    }
+  },
+  "variables": {
+    "DESIGN_NAME": {
+      "category": "required",
+      "required": true,
+      "default": null,
+      "description_en": "The name of the top level module of the design",
+      "description_tr": "Tasarımın üst seviye modül adı.",
+      "value_kind": "text"
+    },
+    "VERILOG_FILES": {
+      "category": "required",
+      "required": true,
+      "default": null,
+      "description_en": "The path of the design's verilog files",
+      "description_tr": "Tasarımın Verilog dosya yolu.",
+      "value_kind": "text"
+    },
+    "CLOCK_PERIOD": {
+      "category": "required",
+      "required": true,
+      "default": null,
+      "description_en": "The clock period for the design in ns",
+      "description_tr": "Tasarımın saat periyodu (ns).",
+      "value_kind": "text"
+    },
+    "CLOCK_NET": {
+      "category": "required",
+      "required": true,
+      "default": null,
+      "description_en": "The name of the Net input to root clock buffer used in Clock Tree Synthesis.",
+      "description_tr": "Saat ağacı sentezinde kök saat tamponuna giren net adı.",
+      "value_kind": "text"
+    },
+    "CLOCK_PORT": {
+      "category": "required",
+      "required": true,
+      "default": null,
+      "description_en": "The name of the design's clock port used in Static Timing Analysis.",
+      "description_tr": "Statik zamanlama analizinde kullanılan saat portu adı.",
+      "value_kind": "text"
+    },
+    "LIB_SYNTH": {
+      "category": "synthesis",
+      "required": false,
+      "default": "$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "description_en": "The library used for synthesis by yosys. <br> (Default: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`)",
+      "description_tr": "Sentezde Yosys tarafından kullanılan kütüphane by yosys. <br> (Varsayılan: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`)",
+      "value_kind": "text"
+    },
+    "SYNTH_BIN": {
+      "category": "synthesis",
+      "required": false,
+      "default": "yosys",
+      "description_en": "The yosys binary used in the flow. <br> (Default: `yosys`)",
+      "description_tr": "The yosys binary used in the flow. <br> (Varsayılan: `yosys`)",
+      "value_kind": "text"
+    },
+    "SYNTH_DRIVING_CELL": {
+      "category": "synthesis",
+      "required": false,
+      "default": "sky130_fd_sc_hd__inv_8",
+      "description_en": "The cell to drive the input ports. <br>(Default: `sky130_fd_sc_hd__inv_8`)",
+      "description_tr": "The cell to drive the input ports. <br>(Varsayılan: `sky130_fd_sc_hd__inv_8`)",
+      "value_kind": "text"
+    },
+    "SYNTH_DRIVING_CELL_PIN": {
+      "category": "synthesis",
+      "required": false,
+      "default": "Y",
+      "description_en": "The name of the SYNTH_DRIVING_CELL output pin. <br>(Default: `Y`)",
+      "description_tr": "The name of the SYNTH_DRIVING_CELL output pin. <br>(Varsayılan: `Y`)",
+      "value_kind": "text"
+    },
+    "SYNTH_CAP_LOAD": {
+      "category": "synthesis",
+      "required": false,
+      "default": "`17.65` ff",
+      "description_en": "The capacitive load on the output ports in femtofarads. <br> (Default: `17.65` ff)",
+      "description_tr": "The capacitive load on the output ports in femtofarads. <br> (Varsayılan: `17.65` ff)",
+      "value_kind": "text"
+    },
+    "SYNTH_MAX_FANOUT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "`5` cells",
+      "description_en": "The max load that the output ports can drive. <br> (Default: `5` cells)",
+      "description_tr": "The max load that the output ports can drive. <br> (Varsayılan: `5` cells)",
+      "value_kind": "text"
+    },
+    "SYNTH_MAX_TRAN": {
+      "category": "synthesis",
+      "required": false,
+      "default": "Calculated at runtime as `10%` of the provided clock period, unless this exceeds a set DEFAULT_MAX_TRAN, in which case it will be used as is",
+      "description_en": "The max transition time (slew) from high to low or low to high on cell inputs in ns. Used in synthesis <br> (Default: Calculated at runtime as `10%` of the provided clock period, unless this exceeds a set DEFAULT_MAX_TRAN, in which case it will be used as is).",
+      "description_tr": "The max transition time (slew) from high to low or low to high on cell inputs ns cinsinden. Used in synthesis <br> (Varsayılan: Calculated at runtime as `10%` of the provided clock period, unless this exceeds a set DEFAULT_MAX_TRAN, in which case it will be used as is).",
+      "value_kind": "text"
+    },
+    "SYNTH_STRATEGY": {
+      "category": "synthesis",
+      "required": false,
+      "default": "AREA 0",
+      "description_en": "Strategies for abc logic synthesis and technology mapping <br> Possible values are `DELAY/AREA 0-3/0-2`; the first part refers to the optimization target of the synthesis strategy (area vs. delay) and the second one is an index. <br> (Default: `AREA 0`)",
+      "description_tr": "Strategies for abc logic synthesis and technology mapping <br> Possible values are `DELAY/AREA 0-3/0-2`; the first part refers to the optimization target of the synthesis strategy (area vs. delay) and the second one is an index. <br> (Varsayılan: `AREA 0`)",
+      "value_kind": "enum"
+    },
+    "SYNTH_BUFFERING": {
+      "category": "synthesis",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables abc cell buffering <br> Enabled = 1, Disabled = 0 <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: abc cell buffering <br> Açık = 1, Kapalı = 0 <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "SYNTH_SIZING": {
+      "category": "synthesis",
+      "required": false,
+      "default": "0",
+      "description_en": "Enables abc cell sizing (instead of buffering) <br> Enabled = 1, Disabled = 0 <br> (Default: `0`)",
+      "description_tr": "Etkinleştirir: abc cell sizing (instead of buffering) <br> Açık = 1, Kapalı = 0 <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "SYNTH_READ_BLACKBOX_LIB": {
+      "category": "synthesis",
+      "required": false,
+      "default": "0",
+      "description_en": "A flag that enable reading the full(untrimmed) liberty file as a blackbox for synthesis. Please note that this is not used in technology mapping. This should only be used when trying to preserve gate instances in the rtl of the design.  <br> Enabled = 1, Disabled = 0 <br> (Default: `0`)",
+      "description_tr": "Bayrak: enable reading the full(untrimmed) liberty file as a blackbox for synthesis. Please note that this is not used in technology mapping. This should only be used when trying to preserve gate instances in the rtl of the design.  <br> Açık = 1, Kapalı = 0 <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "SYNTH_NO_FLAT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "0",
+      "description_en": "A flag that disables flattening the hierarchy during synthesis, only flattening it after synthesis, mapping and optimizations. <br> Enabled = 1, Disabled = 0 <br> (Default: `0`)",
+      "description_tr": "Bayrak: disables flattening the hierarchy during synthesis, only flattening it after synthesis, mapping and optimizations. <br> Açık = 1, Kapalı = 0 <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "SYNTH_SHARE_RESOURCES": {
+      "category": "synthesis",
+      "required": false,
+      "default": "1",
+      "description_en": "A flag that enables yosys to reduce the number of cells by determining shareable resources and merging them. <br> Enabled = 1, Disabled = 0 <br> (Default: `1`)",
+      "description_tr": "Bayrak: enables yosys to reduce the number of cells by determining shareable resources and merging them. <br> Açık = 1, Kapalı = 0 <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "SYNTH_ADDER_TYPE": {
+      "category": "synthesis",
+      "required": false,
+      "default": "YOSYS",
+      "description_en": "Adder type to which the $add and $sub operators are mapped to. <br> Possible values are `YOSYS/FA/RCA/CSA`; where `YOSYS` refers to using Yosys internal adder definition, `FA` refers to full-adder structure, `RCA` refers to ripple carry adder structure, and `CSA` refers to carry select adder. <br> (Default: `YOSYS`)",
+      "description_tr": "Adder type to which the $add and $sub operators are mapped to. <br> Possible values are `YOSYS/FA/RCA/CSA`; where `YOSYS` refers to using Yosys internal adder definition, `FA` refers to full-adder structure, `RCA` refers to ripple carry adder structure, and `CSA` refers to carry select adder. <br> (Varsayılan: `YOSYS`)",
+      "value_kind": "enum"
+    },
+    "LIB_SLOWEST": {
+      "category": "synthesis",
+      "required": false,
+      "default": "$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib",
+      "description_en": "Points to the lib file, corresponding to the slowest corner, for max delay calculation during STA. <br> (Default: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib`)",
+      "description_tr": "Şu dosyaya işaret eder: lib file, corresponding to the slowest corner, for max delay calculation during STA. <br> (Varsayılan: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib`)",
+      "value_kind": "text"
+    },
+    "LIB_FASTEST": {
+      "category": "synthesis",
+      "required": false,
+      "default": "$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ss_100C_1v60.lib",
+      "description_en": "Points to the lib file, corresponding to the fastest corner, for min delay calculation during STA. <br> (Default: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ss_100C_1v60.lib`)",
+      "description_tr": "Şu dosyaya işaret eder: lib file, corresponding to the fastest corner, for min delay calculation during STA. <br> (Varsayılan: `$::env(PDK_ROOT)/$::env(PDK)/libs.ref/$::env(STD_CELL_LIBRARY)/lib/sky130_fd_sc_hd__ss_100C_1v60.lib`)",
+      "value_kind": "text"
+    },
+    "LIB_TYPICAL": {
+      "category": "synthesis",
+      "required": false,
+      "default": null,
+      "description_en": "Library used for typical delay calculation during STA. <br> (Default`LIB_SYNTH`)",
+      "description_tr": "Library used for typical delay calculation during STA. <br> (Default`LIB_SYNTH`)",
+      "value_kind": "text"
+    },
+    "CLOCK_BUFFER_FANOUT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "16",
+      "description_en": "Fanout of clock tree buffers. <br> (Default: `16`)",
+      "description_tr": "Fanout of clock tree buffers. <br> (Varsayılan: `16`)",
+      "value_kind": "text"
+    },
+    "ROOT_CLK_BUFFER": {
+      "category": "synthesis",
+      "required": false,
+      "default": "sky130_fd_sc_hd__clkbuf_16",
+      "description_en": "Root clock buffer of the clock tree. <br> (Default: `sky130_fd_sc_hd__clkbuf_16`)",
+      "description_tr": "Root clock buffer of the clock tree. <br> (Varsayılan: `sky130_fd_sc_hd__clkbuf_16`)",
+      "value_kind": "text"
+    },
+    "CLK_BUFFER": {
+      "category": "synthesis",
+      "required": false,
+      "default": "sky130_fd_sc_hd__clkbuf_4",
+      "description_en": "Clock buffer used for inner nodes of the clock tree. <br> (Default: `sky130_fd_sc_hd__clkbuf_4`)",
+      "description_tr": "Clock buffer used for inner nodes of the clock tree. <br> (Varsayılan: `sky130_fd_sc_hd__clkbuf_4`)",
+      "value_kind": "text"
+    },
+    "CLK_BUFFER_INPUT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "A",
+      "description_en": "Input pin of the clock tree buffer. <br> (Default: `A`)",
+      "description_tr": "Input pin of the clock tree buffer. <br> (Varsayılan: `A`)",
+      "value_kind": "text"
+    },
+    "CLK_BUFFER_OUTPUT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "X",
+      "description_en": "Output pin of the clock tree buffer. <br> (Default: `X`)",
+      "description_tr": "Output pin of the clock tree buffer. <br> (Varsayılan: `X`)",
+      "value_kind": "text"
+    },
+    "BASE_SDC_FILE": {
+      "category": "synthesis",
+      "required": false,
+      "default": "$::env(OPENLANE_ROOT)/scripts/base.sdc",
+      "description_en": "Specifies the base sdc file to source before running Static Timing Analysis. <br> (Default: `$::env(OPENLANE_ROOT)/scripts/base.sdc`)",
+      "description_tr": "Belirtilen: base sdc file to source before running Static Timing Analysis. <br> (Varsayılan: `$::env(OPENLANE_ROOT)/scripts/base.sdc`)",
+      "value_kind": "text"
+    },
+    "VERILOG_INCLUDE_DIRS": {
+      "category": "synthesis",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the verilog includes directories. <br> Optional.",
+      "description_tr": "Belirtilen: verilog includes directories. <br> İsteğe bağlı.",
+      "value_kind": "text"
+    },
+    "SYNTH_FLAT_TOP": {
+      "category": "synthesis",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies whether or not the top level should be flattened during elaboration. 1 = True, 0= False <br> Default: `0`.",
+      "description_tr": "Belirler: or not the top level should be flattened during elaboration. 1 = True, 0= False <br> Varsayılan: `0`.",
+      "value_kind": "text"
+    },
+    "IO_PCT": {
+      "category": "synthesis",
+      "required": false,
+      "default": "0.2",
+      "description_en": "Specifies the percentage of the clock period used in the input/output delays. Ranges from 0 to 1.0. <br> (Default: `0.2`)",
+      "description_tr": "Belirtilen: percentage of the clock period used in the input/output delays. Ranges from 0 to 1.0. <br> (Varsayılan: `0.2`)",
+      "value_kind": "text"
+    },
+    "FP_CORE_UTIL": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "`50` percent",
+      "description_en": "The core utilization percentage. <br> (Default: `50` percent)",
+      "description_tr": "Çekirdek kullanım yüzdesi. <br> (Varsayılan: `50` yüzde)",
+      "value_kind": "text"
+    },
+    "FP_ASPECT_RATIO": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "1",
+      "description_en": "The core's aspect ratio (height / width). <br> (Default: `1`)",
+      "description_tr": "The core's aspect ratio (height / width). <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "FP_SIZING": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "`\"relative\"` - accepts \"absolute\" as well",
+      "description_en": "Whether to use relative sizing by making use of `FP_CORE_UTIL` or absolute one using `DIE_AREA`. <br> (Default: `\"relative\"` - accepts \"absolute\" as well)",
+      "description_tr": "Whether to use relative sizing by making use of `FP_CORE_UTIL` or absolute one using `DIE_AREA`. <br> (Varsayılan: `\"relative\"` - accepts \"absolute\" as well)",
+      "value_kind": "text"
+    },
+    "DIE_AREA": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "unset",
+      "description_en": "Specific die area to be used in floorplanning. Specified as a 4-corner rectangle. Units in mm <br> (Default: unset)",
+      "description_tr": "Specific die area to be used in floorplanning. Specified as a 4-corner rectangle. Units in mm <br> (Varsayılan: unset)",
+      "value_kind": "text"
+    },
+    "FP_IO_HMETAL": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "4",
+      "description_en": "The metal layer on which to place the io pins horizontally (top and bottom of the die). <br>(Default: `4`)",
+      "description_tr": "The metal layer on which to place the io pins horizontally (top and bottom of the die). <br>(Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "FP_IO_VMETAL": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "3",
+      "description_en": "The metal layer on which to place the io pins vertically (sides of the die) <br> (Default: `3`)",
+      "description_tr": "The metal layer on which to place the io pins vertically (sides of the die) <br> (Varsayılan: `3`)",
+      "value_kind": "text"
+    },
+    "FP_IO_MODE": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "1",
+      "description_en": "Decides the mode of the random IO placement option. 0=matching mode, 1=random equidistant mode <br> (Default: `1`)",
+      "description_tr": "Decides the mode of the random IO placement option. 0=matching mode, 1=random equidistant mode <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "FP_WELLTAP_CELL": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "The name of the welltap cell during welltap insertion.",
+      "description_tr": "The name of the welltap cell during welltap insertion.",
+      "value_kind": "text"
+    },
+    "FP_ENDCAP_CELL": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "The name of the endcap cell during endcap insertion.",
+      "description_tr": "The name of the endcap cell during endcap insertion.",
+      "value_kind": "text"
+    },
+    "FP_PDN_VOFFSET": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "16.32",
+      "description_en": "The offset of the vertical power stripes on the metal layer 4 in the power distribution network <br> (Default: `16.32`)",
+      "description_tr": "The offset of the vertical power stripes on the metal layer 4 in the power distribution network <br> (Varsayılan: `16.32`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_VPITCH": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "153.6",
+      "description_en": "The pitch of the vertical power stripes on the metal layer 4 in the power distribution network <br> (Default: `153.6`)",
+      "description_tr": "The pitch of the vertical power stripes on the metal layer 4 in the power distribution network <br> (Varsayılan: `153.6`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_HOFFSET": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "16.65",
+      "description_en": "The offset of the horizontal power stripes on the metal layer 5 in the power distribution network <br> (Default: `16.65`)",
+      "description_tr": "The offset of the horizontal power stripes on the metal layer 5 in the power distribution network <br> (Varsayılan: `16.65`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_HPITCH": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "153.18",
+      "description_en": "The pitch of the horizontal power stripes on the metal layer 5 in the power distribution network <br> (Default: `153.18`)",
+      "description_tr": "The pitch of the horizontal power stripes on the metal layer 5 in the power distribution network <br> (Varsayılan: `153.18`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_AUTO_ADJUST": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "1",
+      "description_en": "Decides whether or not the flow should attempt to re-adjust the power grid, in order for it to fit inside the core area of the design, if needed. <br> 1=enabled, 0 =disabled (Default: `1`)",
+      "description_tr": "Karar verir: or not the flow should attempt to re-adjust the power grid, in order for it to fit inside the core area of the design, if needed. <br> 1=enabled, 0 =disabled (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "FP_TAPCELL_DIST": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "14",
+      "description_en": "The horizontal distance between two tapcell columns <br> (Default: `14`)",
+      "description_tr": "The horizontal distance between two tapcell columns <br> (Varsayılan: `14`)",
+      "value_kind": "text"
+    },
+    "FP_IO_VEXTEND": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "`-1` Disabled",
+      "description_en": "Extends the vertical io pins outside of the die by the specified units<br> (Default: `-1` Disabled)",
+      "description_tr": "Extends the vertical io pins outside of the die by the specified units<br> (Varsayılan: `-1` Disabled)",
+      "value_kind": "text"
+    },
+    "FP_IO_HEXTEND": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "`-1` Disabled",
+      "description_en": "Extends the horizontal io pins outside of the die by the specified units<br> (Default: `-1` Disabled)",
+      "description_tr": "Extends the horizontal io pins outside of the die by the specified units<br> (Varsayılan: `-1` Disabled)",
+      "value_kind": "text"
+    },
+    "FP_IO_VLENGTH": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "4",
+      "description_en": "The length of the vertical IOs in microns. <br> (Default: `4`)",
+      "description_tr": "The length of the vertical IOs in mikron. <br> (Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "FP_IO_HLENGTH": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "4",
+      "description_en": "The length of the horizontal IOs in microns. <br> (Default: `4`)",
+      "description_tr": "The length of the horizontal IOs in mikron. <br> (Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "FP_IO_VTHICKNESS_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "2",
+      "description_en": "A multiplier for vertical pin thickness. Base thickness is the pins layer minwidth <br> (Default: `2`)",
+      "description_tr": "A multiplier for vertical pin thickness. Base thickness is the pins layer minwidth <br> (Varsayılan: `2`)",
+      "value_kind": "text"
+    },
+    "FP_IO_HTHICKNESS_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "2",
+      "description_en": "A multiplier for horizontal pin thickness. Base thickness is the pins layer minwidth <br> (Default: `2`)",
+      "description_tr": "A multiplier for horizontal pin thickness. Base thickness is the pins layer minwidth <br> (Varsayılan: `2`)",
+      "value_kind": "text"
+    },
+    "BOTTOM_MARGIN_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "4",
+      "description_en": "The core margin, in multiples of site heights, from the bottom boundary. <br> (Default: `4`)",
+      "description_tr": "The core margin, in multiples of site heights, from the bottom boundary. <br> (Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "TOP_MARGIN_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "4",
+      "description_en": "The core margin, in multiples of site heights, from the top boundary. <br> (Default: `4`)",
+      "description_tr": "The core margin, in multiples of site heights, from the top boundary. <br> (Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "LEFT_MARGIN_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "12",
+      "description_en": "The core margin, in multiples of site widths, from the left boundary.  <br> (Default: `12`)",
+      "description_tr": "The core margin, in multiples of site widths, from the left boundary.  <br> (Varsayılan: `12`)",
+      "value_kind": "text"
+    },
+    "RIGHT_MARGIN_MULT": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "12",
+      "description_en": "The core margin, in multiples of site widths, from the right boundary.   <br> (Default: `12`)",
+      "description_tr": "The core margin, in multiples of site widths, from the right boundary.   <br> (Varsayılan: `12`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_CORE_RING": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "0",
+      "description_en": "Enables adding a core ring around the design. More details on the control variables in the pdk configurations documentation. 0=Disable 1=Enable. <br> (Default: `0`)",
+      "description_tr": "Etkinleştirir: adding a core ring around the design. More details on the control variables in the pdk configurations documentation. 0=Disable 1=Enable. <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "FP_PDN_ENABLE_RAILS": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables the creation of rails in the power grid. 0=Disable 1=Enable. <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: the creation of rails in the power grid. 0=Disable 1=Enable. <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "FP_HORIZONTAL_HALO": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Sets the horizontal halo around the tap and decap cells. The value provided is in microns. <br> Default: `10`",
+      "description_tr": "Sets the horizontal halo around the tap and decap cells. The value provided is in mikron. <br> Varsayılan: `10`",
+      "value_kind": "text"
+    },
+    "FP_VERTICAL_HALO": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Sets the vertical halo around the tap and decap cells. The value provided is in microns. <br> Default: set to the value of `FP_HORIZONTAL_HALO`",
+      "description_tr": "Sets the vertical halo around the tap and decap cells. The value provided is in mikron. <br> Varsayılan: set to the value of `FP_HORIZONTAL_HALO`",
+      "value_kind": "text"
+    },
+    "DESIGN_IS_CORE": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "1",
+      "description_en": "Controls the layers used in the power grid. Depending on whether the design is the core of the chip or a macro inside the core. 1=Is a Core, 0=Is a Macro <br> (Default: `1`)",
+      "description_tr": "Controls the layers used in the power grid. Depending on whether the design is the core of the chip or a macro inside the core. 1=Is a Core, 0=Is a Macro <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "FP_PIN_ORDER_CFG": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "NONE",
+      "description_en": "Points to the pin order configuration file to set the pins in specific directions (S, W, E, N). Check this [file][0] as an example. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Default: NONE)",
+      "description_tr": "Şu dosyaya işaret eder: pin order configuration file to set the pins in specific directions (S, W, E, N). Check this [file][0] as an example. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Varsayılan: NONE)",
+      "value_kind": "text"
+    },
+    "FP_CONTEXT_DEF": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "NONE",
+      "description_en": "Points to the parent DEF file that includes this macro/design and uses this DEF file to determine the best locations for the pins. It must be used with `FP_CONTEXT_LEF`, otherwise it's considered non-existing. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Default: NONE)",
+      "description_tr": "Şu dosyaya işaret eder: parent DEF file that includes this macro/design and uses this DEF file to determine the best locations for the pins. It must be used with `FP_CONTEXT_LEF`, otherwise it's considered non-existing. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Varsayılan: NONE)",
+      "value_kind": "text"
+    },
+    "FP_CONTEXT_LEF": {
+      "category": "floorplanning",
+      "required": false,
+      "default": "NONE",
+      "description_en": "Points to the parent LEF file that includes this macro/design and uses this LEF file to determine the best locations for the pins. It must be used with `FP_CONTEXT_DEF`, otherwise it's considered non-existing. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Default: NONE)",
+      "description_tr": "Şu dosyaya işaret eder: parent LEF file that includes this macro/design and uses this LEF file to determine the best locations for the pins. It must be used with `FP_CONTEXT_DEF`, otherwise it's considered non-existing. If not set, then the IO pins will be placed based on one of the other methods depending on the rest of the configurations. <br> (Varsayılan: NONE)",
+      "value_kind": "text"
+    },
+    "FP_DEF_TEMPLATE": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Points to the DEF file to be used as a template when running `apply_def_template`. This will be used to exctract pin names, locations, shapes -excluding power and ground pins- as well as the die area and replicate all this information in the `CURRENT_DEF`.",
+      "description_tr": "Şu dosyaya işaret eder: DEF file to be used as a template when running `apply_def_template`. This will be used to exctract pin names, locations, shapes -excluding power and ground pins- as well as the die area and replicate all this information in the `CURRENT_DEF`.",
+      "value_kind": "text"
+    },
+    "VDD_NETS": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the power nets/pins to be used when creating the power grid for the design.",
+      "description_tr": "Belirtilen: power nets/pins to be used when creating the power grid for the design.",
+      "value_kind": "text"
+    },
+    "GND_NETS": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the ground nets/pins to be used when creating the power grid for the design.",
+      "description_tr": "Belirtilen: ground nets/pins to be used when creating the power grid for the design.",
+      "value_kind": "text"
+    },
+    "SYNTH_USE_PG_PINS_DEFINES": {
+      "category": "floorplanning",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the power guard used in the verilog source code to specify the power and ground pins. This is used to automatically extract `VDD_NETS` and `GND_NET` variables from the verilog, with the assumption that they will be order `inout vdd1, inout gnd1, inout vdd2, inout gnd2, ...`.",
+      "description_tr": "Belirtilen: power guard used in the verilog source code to specify the power and ground pins. This is used to automatically extract `VDD_NETS` and `GND_NET` variables from the verilog, with the assumption that they will be order `inout vdd1, inout gnd1, inout vdd2, inout gnd2, ...`.",
+      "value_kind": "text"
+    },
+    "PL_TARGET_DENSITY": {
+      "category": "placement",
+      "required": false,
+      "default": "0.55",
+      "description_en": "The desired placement density of cells. It reflects how spread the cells would be on the core area. 1 = closely dense. 0 = widely spread <br> (Default: `0.55`)",
+      "description_tr": "Hücrelerin çekirdek alanındaki hedef yerleşim yoğunluğu of cells. It reflects how spread the cells would be on the core area. 1 = closely dense. 0 = widely spread <br> (Varsayılan: `0.55`)",
+      "value_kind": "text"
+    },
+    "PL_TIME_DRIVEN": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should use time driven placement. 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should use time driven placement. 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_LIB": {
+      "category": "placement",
+      "required": false,
+      "default": "LIB_TYPICAL",
+      "description_en": "Specifies the library for time driven placement <br> (Default: `LIB_TYPICAL`)",
+      "description_tr": "Belirtilen: library for time driven placement <br> (Varsayılan: `LIB_TYPICAL`)",
+      "value_kind": "text"
+    },
+    "PL_BASIC_PLACEMENT": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should run basic placement or not (by running initial placement, increasing the minimum overflow to 0.9, and limiting the number of iterations to 20). 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should run basic placement or not (by running initial placement, increasing the minimum overflow to 0.9, and limiting the number of iterations to 20). 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_SKIP_INITIAL_PLACEMENT": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should run initial placement or not. 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should run initial placement or not. 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_RANDOM_GLB_PLACEMENT": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should run random placement or not. This is useful if the design is tiny (less than 100 cells). 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should run random placement or not. This is useful if the design is tiny (less than 100 cells). 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_RANDOM_INITIAL_PLACEMENT": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should run random placement or not followed by replace's initial placement. This is useful if the design is tiny (less than 100 cells). 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should run random placement or not followed by replace's initial placement. This is useful if the design is tiny (less than 100 cells). 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_ROUTABILITY_DRIVEN": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether the placer should use routability driven placement. 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: the placer should use routability driven placement. 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PL_OPENPHYSYN_OPTIMIZATIONS": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies whether OpenPhySyn should be used to perform timing optimizations or not. 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Belirler: OpenPhySyn should be used to perform timing optimizations or not. 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "PSN_ENABLE_RESIZING": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables driver resizing by OpenPhySyn. 0 = Disabled, 1 = Enabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: driver resizing by OpenPhySyn. 0 = Kapalı, 1 = Açık <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "PSN_ENABLE_PIN_SWAP": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables pin swapping for timing optimization by OpenPhySyn. 0 = Disabled, 1 = Enabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: pin swapping for timing optimization by OpenPhySyn. 0 = Kapalı, 1 = Açık <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "PL_RESIZER_DESIGN_OPTIMIZATIONS": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether resizer design optimizations should be performed or not. 0 = false, 1 = true <br> (Default: `1`)",
+      "description_tr": "Belirler: resizer design optimizations should be performed or not. 0 = hayır, 1 = evet <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "PL_RESIZER_TIMING_OPTIMIZATIONS": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether resizer timing optimizations should be performed or not. 0 = false, 1 = true <br> (Default: `1`)",
+      "description_tr": "Belirler: resizer timing optimizations should be performed or not. 0 = hayır, 1 = evet <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "PL_RESIZER_MAX_WIRE_LENGTH": {
+      "category": "placement",
+      "required": false,
+      "default": "0",
+      "description_en": "Specifies the maximum wire length cap used by resizer to insert buffers. If set to 0, no buffers will be inserted. Value in microns. <br> (Default: `0`)",
+      "description_tr": "Belirtilen: maximum wire length cap used by resizer to insert buffers. If set to 0, no buffers will be inserted. Value in mikron. <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "LIB_OPT": {
+      "category": "placement",
+      "required": false,
+      "default": null,
+      "description_en": "Points to the lib file, corresponding to the slowest corner, for max delay calculation during OpenPhySyn optimizations. This is usually a trimmed version of `LIB_SLOWEST`. <br> Default: `$::env(TMP_DIR)/opt.lib`",
+      "description_tr": "Şu dosyaya işaret eder: lib file, corresponding to the slowest corner, for max delay calculation during OpenPhySyn optimizations. This is usually a trimmed version of `LIB_SLOWEST`. <br> Varsayılan: `$::env(TMP_DIR)/opt.lib`",
+      "value_kind": "text"
+    },
+    "LIB_RESIZER_OPT": {
+      "category": "placement",
+      "required": false,
+      "default": null,
+      "description_en": "Points to the lib file, corresponding to the slowest corner, for max delay calculation during resizer optimizations. This is copy of `LIB_SLOWEST`. <br> Default: `$::env(TMP_DIR)/resizer.lib`",
+      "description_tr": "Şu dosyaya işaret eder: lib file, corresponding to the slowest corner, for max delay calculation during resizer optimizations. This is copy of `LIB_SLOWEST`. <br> Varsayılan: `$::env(TMP_DIR)/resizer.lib`",
+      "value_kind": "text"
+    },
+    "DONT_USE_CELLS": {
+      "category": "placement",
+      "required": false,
+      "default": null,
+      "description_en": "The list of cells to not use during resizer optimizations. <br> Default: the contents of `DRC_EXCLUDE_CELL_LIST`.",
+      "description_tr": "The list of cells to not use during resizer optimizations. <br> Varsayılan: the contents of `DRC_EXCLUDE_CELL_LIST`.",
+      "value_kind": "text"
+    },
+    "PL_ESTIMATE_PARASITICS": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to run STA after global placement using OpenROAD's estimate_parasitics -placement and generates reports under `logs/placement`. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to run STA after global placement using OpenROAD's estimate_parasitics -placement and generates reports under `logs/placement`. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "PL_DIAMOND_SEARCH_HEIGHT": {
+      "category": "placement",
+      "required": false,
+      "default": "100",
+      "description_en": "Specifies the diamond search height used for legalizing the cells during detailed placement. The search width is calculated internally as `heigh*5`. For designs that contain big macros, increasing this value to above 400 will allow for more search space and more potentail for successful legalization. <br> (Default: `100`)",
+      "description_tr": "Belirtilen: diamond search height used for legalizing the cells during detailed placement. The search width is calculated internally as `heigh*5`. For designs that contain big macros, increasing this value to above 400 will allow for more search space and more potentail for successful legalization. <br> (Varsayılan: `100`)",
+      "value_kind": "text"
+    },
+    "PL_OPTIMIZE_MIRRORING": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to run an optimize_mirroring pass whenever detailed placement happens. This pass will mirror the cells whenever possible to optimize the design. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to run an optimize_mirroring pass whenever detailed placement happens. This pass will mirror the cells whenever possible to optimize the design. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "PL_RESIZER_BUFFER_INPUT_PORTS": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to insert buffers on input ports whenever resizer optimizations are run. For this to be used, `PL_RESIZER_DESIGN_OPTIMIZATIONS` must be set to 1. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to insert buffers on input ports whenever resizer optimizations are run. For this to be used, `PL_RESIZER_DESIGN_OPTIMIZATIONS` must be set to 1. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "PL_RESIZER_BUFFER_OUTPUT_PORTS": {
+      "category": "placement",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to insert buffers on output ports whenever resizer optimizations are run. For this to be used, `PL_RESIZER_DESIGN_OPTIMIZATIONS` must be set to 1. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to insert buffers on output ports whenever resizer optimizations are run. For this to be used, `PL_RESIZER_DESIGN_OPTIMIZATIONS` must be set to 1. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "CTS_TARGET_SKEW": {
+      "category": "cts",
+      "required": false,
+      "default": "`200` ps",
+      "description_en": "The target clock skew in picoseconds. <br> (Default: `200` ps)",
+      "description_tr": "The target clock skew in picoseconds. <br> (Varsayılan: `200` ps)",
+      "value_kind": "text"
+    },
+    "CTS_ROOT_BUFFER": {
+      "category": "cts",
+      "required": false,
+      "default": null,
+      "description_en": "The name of cell inserted at the root of the clock tree.",
+      "description_tr": "The name of cell inserted at the root of the clock tree.",
+      "value_kind": "text"
+    },
+    "CLOCK_TREE_SYNTH": {
+      "category": "cts",
+      "required": false,
+      "default": "1",
+      "description_en": "Enable clock tree synthesis for tirtonCTS. <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: clock tree synthesis for tirtonCTS. <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "CTS_TOLERANCE": {
+      "category": "cts",
+      "required": false,
+      "default": "100",
+      "description_en": "An integer value that represents a tradeoff of QoR and runtime. Higher values will produce smaller runtime but worse QoR <br> (Default: `100`)",
+      "description_tr": "An integer value that represents a tradeoff of QoR and runtime. Higher values will produce smaller runtime but worse QoR <br> (Varsayılan: `100`)",
+      "value_kind": "text"
+    },
+    "CTS_SINK_CLUSTERING_SIZE": {
+      "category": "cts",
+      "required": false,
+      "default": "20",
+      "description_en": "Specifies the maximum number of sinks per cluster. <br> (Default: `20`)",
+      "description_tr": "Belirtilen: maximum number of sinks per cluster. <br> (Varsayılan: `20`)",
+      "value_kind": "text"
+    },
+    "CTS_SINK_CLUSTERING_MAX_DIAMETER": {
+      "category": "cts",
+      "required": false,
+      "default": "50",
+      "description_en": "Specifies maximum diameter (in micron) of sink cluster. <br> (Default: `50`)",
+      "description_tr": "Belirtir: maximum diameter (in micron) of sink cluster. <br> (Varsayılan: `50`)",
+      "value_kind": "text"
+    },
+    "CTS_REPORT_TIMING": {
+      "category": "cts",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to run STA after clock tree synthesis using OpenROAD's estimate_parasitics -placement and generates reports under `logs/cts`. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to run STA after clock tree synthesis using OpenROAD's estimate_parasitics -placement and generates reports under `logs/cts`. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "GLB_RT_MINLAYER": {
+      "category": "routing",
+      "required": false,
+      "default": "1",
+      "description_en": "The number of lowest layer to be used in routing. <br> (Default: `1`)",
+      "description_tr": "Yönlendirmede kullanılacak en alt metal katman numarası to be used in routing. <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_MAXLAYER": {
+      "category": "routing",
+      "required": false,
+      "default": "6",
+      "description_en": "The number of highest layer to be used in routing. <br> (Default: `6`)",
+      "description_tr": "Yönlendirmede kullanılacak en üst metal katman numarası to be used in routing. <br> (Varsayılan: `6`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph. Values range from 0 to 1. <br> 1 = most reduction, 0 = least reduction  <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph. Values range from 0 to 1. <br> 1 = most reduction, 0 = least reduction  <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L1_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0.99",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to li1 layer in sky130A. Values range from 0 to 1 <br> (Default: `0.99`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to li1 layer in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0.99`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L2_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met1 in sky130A. Values range from 0 to 1 <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met1 in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L3_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met2 in sky130A. Values range from 0 to 1 <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met2 in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L4_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met3 in sky130A. Values range from 0 to 1 <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met3 in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L5_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met4 in sky130A. Values range from 0 to 1 <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met4 in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_L6_ADJUSTMENT": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met5 in sky130A. Values range from 0 to 1 <br> (Default: `0`)",
+      "description_tr": "Reduction in the routing capacity of the edges between the cells in the global routing graph but specific to met5 in sky130A. Values range from 0 to 1 <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_UNIDIRECTIONAL": {
+      "category": "routing",
+      "required": false,
+      "default": "1",
+      "description_en": "Allow unidirectional routing. 0 = false, 1 = true <br> (Default: `1`)",
+      "description_tr": "Allow unidirectional routing. 0 = hayır, 1 = evet <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_ALLOW_CONGESTION": {
+      "category": "routing",
+      "required": false,
+      "default": "0",
+      "description_en": "Allow congestion in the resultign guides. 0 = false, 1 = true <br> (Default: `0`)",
+      "description_tr": "Allow congestion in the resultign guides. 0 = hayır, 1 = evet <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_OVERFLOW_ITERS": {
+      "category": "routing",
+      "required": false,
+      "default": "50",
+      "description_en": "The maximum number of iterations waiting for the overflow to reach the desired value. <br> (Default: `50`)",
+      "description_tr": "The maximum number of iterations waiting for the overflow to reach the desired value. <br> (Varsayılan: `50`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_TILES": {
+      "category": "routing",
+      "required": false,
+      "default": "15",
+      "description_en": "The size of the GCELL used by Fastroute during global routing. <br> (Default: `15`)",
+      "description_tr": "The size of the GCELL used by Fastroute during global routing. <br> (Varsayılan: `15`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_ESTIMATE_PARASITICS": {
+      "category": "routing",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether or not to run STA after global routing using OpenROAD's estimate_parasitics -global_routing and generates reports under `logs/routing`. 1 = Enabled, 0 = Disabled. <br> (Default: `1`)",
+      "description_tr": "Belirler: or not to run STA after global routing using OpenROAD's estimate_parasitics -global_routing and generates reports under `logs/routing`. 1 = Açık, 0 = Kapalı. <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "ROUTING_CORES": {
+      "category": "routing",
+      "required": false,
+      "default": "4",
+      "description_en": "Specifies the number of threads to be used in TritonRoute. <br> (Default: `4`)",
+      "description_tr": "Belirtilen: number of threads to be used in TritonRoute. <br> (Varsayılan: `4`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_MAX_DIODE_INS_ITERS": {
+      "category": "routing",
+      "required": false,
+      "default": "1",
+      "description_en": "Controls the maximum number of iterations at which re-running Fastroute for diode insertion stops. Each iteration ARC detects the violations and FastRoute fixes them by inserting diodes, then producing the new DEF. The number of antenna violations is compared with the previous iteration and if they are equal or the number is greater the iterations stop and the DEF from the previous iteration is used in the rest of the flow. If the current antenna violations reach zero, the current def will be used and the iterations will not continue. This option is only available in DIODE_INSERTION_STRATEGY = `3`.  <br> (Default: `1`)",
+      "description_tr": "Controls the maximum number of iterations at which re-running Fastroute for diode insertion stops. Each iteration ARC detects the violations and FastRoute fixes them by inserting diodes, then producing the new DEF. The number of antenna violations is compared with the previous iteration and if they are equal or the number is greater the iterations stop and the DEF from the previous iteration is used in the rest of the flow. If the current antenna violations reach zero, the current def will be used and the iterations will not continue. This option is only available in DIODE_INSERTION_STRATEGY = `3`.  <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "GLB_RT_OBS": {
+      "category": "routing",
+      "required": false,
+      "default": "unset",
+      "description_en": "Specifies custom obstruction to be added prior to global routing. Comma separated list of layer and coordinates: `layer llx lly urx ury`.<br> (Example: `li1 0 100 1000 300, met5 0 0 1000 500`)  <br> (Default: unset)",
+      "description_tr": "Belirtir: custom obstruction to be added prior to global routing. Comma separated list of layer and coordinates: `layer llx lly urx ury`.<br> (Example: `li1 0 100 1000 300, met5 0 0 1000 500`)  <br> (Varsayılan: unset)",
+      "value_kind": "text"
+    },
+    "ROUTING_OPT_ITERS": {
+      "category": "routing",
+      "required": false,
+      "default": "64",
+      "description_en": "Specifies the maximum number of optimization iterations during Detailed Routing in TritonRoute. <br> (Default: `64`)",
+      "description_tr": "Belirtilen: maximum number of optimization iterations during Detailed Routing in TritonRoute. <br> (Varsayılan: `64`)",
+      "value_kind": "text"
+    },
+    "GLOBAL_ROUTER": {
+      "category": "routing",
+      "required": false,
+      "default": "fastroute",
+      "description_en": "Specifies which global router to use. Values: `fastroute` or `cugr`. <br> (Default: `fastroute`)",
+      "description_tr": "Belirtir: which global router to use. Values: `fastroute` or `cugr`. <br> (Varsayılan: `fastroute`)",
+      "value_kind": "text"
+    },
+    "DETAILED_ROUTER": {
+      "category": "routing",
+      "required": false,
+      "default": "tritonroute",
+      "description_en": "Specifies which detailed router to use. Values: `tritonroute`, `tritonroute_or`, or `drcu`. <br> (Default: `tritonroute`)",
+      "description_tr": "Belirtir: which detailed router to use. Values: `tritonroute`, `tritonroute_or`, or `drcu`. <br> (Varsayılan: `tritonroute`)",
+      "value_kind": "text"
+    },
+    "MAGIC_PAD": {
+      "category": "magic",
+      "required": false,
+      "default": "`0`",
+      "description_en": "A flag to pad the views generated by magic (.mag, .lef, .gds) with one site. 1 = Enabled, 0 = Disabled <br> (Default: `0` )",
+      "description_tr": "Bayrak: pad the views generated by magic (.mag, .lef, .gds) with one site. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `0` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_ZEROIZE_ORIGIN": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to move the layout such that it's origin in the lef generated by magic is 0,0. 1 = Enabled, 0 = Disabled  <br> (Default: `1` )",
+      "description_tr": "Bayrak: move the layout such that it's origin in the lef generated by magic is 0,0. 1 = Açık, 0 = Kapalı  <br> (Varsayılan: `1` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_GENERATE_GDS": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to generate gds view via magic . 1 = Enabled, 0 = Disabled  <br> (Default: `1` )",
+      "description_tr": "Bayrak: generate gds view via magic . 1 = Açık, 0 = Kapalı  <br> (Varsayılan: `1` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_GENERATE_LEF": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to generate lef view via magic . 1 = Enabled, 0 = Disabled  <br> (Default: `1` )",
+      "description_tr": "Bayrak: generate lef view via magic . 1 = Açık, 0 = Kapalı  <br> (Varsayılan: `1` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_GENERATE_MAGLEF": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to generate maglef view via magic . 1 = Enabled, 0 = Disabled  <br> (Default: `1` )",
+      "description_tr": "Bayrak: generate maglef view via magic . 1 = Açık, 0 = Kapalı  <br> (Varsayılan: `1` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_WRITE_FULL_LEF": {
+      "category": "magic",
+      "required": false,
+      "default": "`0`",
+      "description_en": "A flag to specify whether or not the output LEF should include all shapes inside the macro or an abstracted view of the macro lef view via magic . 1 = Full View, 0 = Abstracted View  <br> (Default: `0` )",
+      "description_tr": "Bayrak: specify whether or not the output LEF should include all shapes inside the macro or an abstracted view of the macro lef view via magic . 1 = Full View, 0 = Abstracted View  <br> (Varsayılan: `0` )",
+      "value_kind": "text"
+    },
+    "MAGIC_DRC_USE_GDS": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to choose whether to run the magic DRC checks on GDS or not. If not, then the checks will be done on the DEF/LEF. 1 = GDS, 0 = DEF/LEF  <br> (Default: `1` )",
+      "description_tr": "Bayrak: choose whether to run the magic DRC checks on GDS or not. If not, then the checks will be done on the DEF/LEF. 1 = GDS, 0 = DEF/LEF  <br> (Varsayılan: `1` )",
+      "value_kind": "text"
+    },
+    "MAGIC_EXT_USE_GDS": {
+      "category": "magic",
+      "required": false,
+      "default": "`0`",
+      "description_en": "A flag to choose whether to run the magic extractions on GDS or DEF/LEF. If GDS was used Device Level LVS will be run. Otherwise, blackbox LVS will be run. 1 = GDS, 0 = DEF/LEF  <br> (Default: `0` )",
+      "description_tr": "Bayrak: choose whether to run the magic extractions on GDS or DEF/LEF. If GDS was used Device Level LVS will be run. Otherwise, blackbox LVS will be run. 1 = GDS, 0 = DEF/LEF  <br> (Varsayılan: `0` )",
+      "value_kind": "text"
+    },
+    "MAGIC_INCLUDE_GDS_POINTERS": {
+      "category": "magic",
+      "required": false,
+      "default": "`0`",
+      "description_en": "A flag to choose whether to include GDS pointers in the generated mag files or not. 1 = Enabled, 0 = Disabled  <br> (Default: `0` )",
+      "description_tr": "Bayrak: choose whether to include GDS pointers in the generated mag files or not. 1 = Açık, 0 = Kapalı  <br> (Varsayılan: `0` )",
+      "value_kind": "flag"
+    },
+    "MAGIC_DISABLE_HIER_GDS": {
+      "category": "magic",
+      "required": false,
+      "default": "`1`",
+      "description_en": "A flag to disable cif hier and array during GDS-II writing.* 1=Enabled `<so this hier gds will be disabled>`, 0=Disabled `<so this hier gds will be enabled>`. <br> (Default: `1` )",
+      "description_tr": "Bayrak: disable cif hier and array during GDS-II writing.* 1=Enabled `<so this hier gds will be disabled>`, 0=Disabled `<so this hier gds will be enabled>`. <br> (Varsayılan: `1` )",
+      "value_kind": "text"
+    },
+    "LVS_INSERT_POWER_PINS": {
+      "category": "lvs",
+      "required": false,
+      "default": "`1`",
+      "description_en": "Enables power pins insertion before running lvs. 1 = Enabled, 0 = Disabled <br> (Default: `1` )",
+      "description_tr": "Etkinleştirir: power pins insertion before running lvs. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1` )",
+      "value_kind": "flag"
+    },
+    "LVS_CONNECT_BY_LABEL": {
+      "category": "lvs",
+      "required": false,
+      "default": null,
+      "description_en": "Enables connections by label in LVS by skipping `extract unique` in magic extractions. <br> Default: `0`",
+      "description_tr": "Etkinleştirir: connections by label in LVS by skipping `extract unique` in magic extractions. <br> Varsayılan: `0`",
+      "value_kind": "text"
+    },
+    "YOSYS_REWRITE_VERILOG": {
+      "category": "lvs",
+      "required": false,
+      "default": "`0`",
+      "description_en": "Enables yosys to rewrite the verilog before LVS producing a canonical verilog netlist with verbose wire declarations. This flag will be ignored if `LEC_ENABLE` is 1, and it will be rewritten anyways. 1 = Enabled, 0 = Disabled <br> (Default: `0` )",
+      "description_tr": "Etkinleştirir: yosys to rewrite the verilog before LVS producing a canonical verilog netlist with verbose wire declarations. This flag will be ignored if `LEC_ENABLE` is 1, and it will be rewritten anyways. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `0` )",
+      "value_kind": "flag"
+    },
+    "PDK": {
+      "category": "misc",
+      "required": false,
+      "default": "`sky130A`",
+      "description_en": "Specifies the process design kit (PDK). <br> (Default: `sky130A` )",
+      "description_tr": "Belirtilen: process design kit (PDK). <br> (Varsayılan: `sky130A` )",
+      "value_kind": "text"
+    },
+    "STD_CELL_LIBRARY": {
+      "category": "misc",
+      "required": false,
+      "default": "`sky130_fd_sc_hd`",
+      "description_en": "Specifies the standard cell library to be used under the specified PDK. <br> (Default: `sky130_fd_sc_hd` )",
+      "description_tr": "Belirtilen: standard cell library to be used under the specified PDK. <br> (Varsayılan: `sky130_fd_sc_hd` )",
+      "value_kind": "text"
+    },
+    "PDK_ROOT": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the folder path of the PDK. It searches for a `config.tcl` in `$PDK_ROOT/$PDK/libs.tech/openlane/` directory and at least have one standard cell library config defined in `$PDK_ROOT/$PDK/libs.tech/openlane/$STD_CELL_LIBRARY`.",
+      "description_tr": "Belirtilen: folder path of the PDK. It searches for a `config.tcl` in `$PDK_ROOT/$PDK/libs.tech/openlane/` directory and at least have one standard cell library config defined in `$PDK_ROOT/$PDK/libs.tech/openlane/$STD_CELL_LIBRARY`.",
+      "value_kind": "text"
+    },
+    "CELL_PAD": {
+      "category": "misc",
+      "required": false,
+      "default": "`4` microns -- 4 sites",
+      "description_en": "Cell padding; increases the width of cells. <br> (Default: `4` microns -- 4 sites)",
+      "description_tr": "Cell padding; increases the width of cells. <br> (Varsayılan: `4` mikron -- 4 sites)",
+      "value_kind": "text"
+    },
+    "DIODE_PADDING": {
+      "category": "misc",
+      "required": false,
+      "default": "`2` microns -- 2 sites",
+      "description_en": "Diode cell padding; increases the width of diode cells during placement checks. <br> (Default: `2` microns -- 2 sites)",
+      "description_tr": "Diode cell padding; increases the width of diode cells during placement checks. <br> (Varsayılan: `2` mikron -- 2 sites)",
+      "value_kind": "text"
+    },
+    "WIRE_RC_LAYER": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "The metal layer used in estimate parastics `set_wire_rc`. Should be moved to PDK configurations later.. <br> Default: `met1`.",
+      "description_tr": "The metal layer used in estimate parastics `set_wire_rc`. Should be moved to PDK configurations later.. <br> Varsayılan: `met1`.",
+      "value_kind": "text"
+    },
+    "MERGED_LEF_UNPADDED": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "Points to `merged_unpadded.lef` by default. it contains the technology LEF for the used STD_CELL_LIBRARY merged with the LEF file for all the cells.",
+      "description_tr": "İşaret eder: `merged_unpadded.lef` by default. it contains the technology LEF for the used STD_CELL_LIBRARY merged with the LEF file for all the cells.",
+      "value_kind": "text"
+    },
+    "MERGED_LEF": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "points to `merged.lef`, which is `merged_unpadded.lef` but with cell padding. This is controlled by CELL_PAD.",
+      "description_tr": "points to `merged.lef`, which is `merged_unpadded.lef` but with cell padding. This is controlled by CELL_PAD.",
+      "value_kind": "text"
+    },
+    "NO_SYNTH_CELL_LIST": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the file that contains the don't-use-cell-list to be excluded from the liberty file during synthesis. If it's not defined, this path is searched `$::env(PDK_ROOT)/$::env(PDK)/libs.tech/openlane/$::env(STD_CELL_LIBRARY)/no_synth.cells` and if it's not found, then the original liberty will be used as is.",
+      "description_tr": "Belirtilen: file that contains the don't-use-cell-list to be excluded from the liberty file during synthesis. If it's not defined, this path is searched `$::env(PDK_ROOT)/$::env(PDK)/libs.tech/openlane/$::env(STD_CELL_LIBRARY)/no_synth.cells` and if it's not found, then the original liberty will be used as is.",
+      "value_kind": "text"
+    },
+    "DRC_EXCLUDE_CELL_LIST": {
+      "category": "misc",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the file that contains the don't-use-cell-list to be excluded from the liberty file during synthesis and timing optimizations. If it's not defined, this path is searched `$::env(PDK_ROOT)/$::env(PDK)/libs.tech/openlane/$::env(STD_CELL_LIBRARY)/drc_exclude.cells` and if it's not found, then the original liberty will be used as is. In other words, `DRC_EXCLUDE_CELL_LIST` contain the only excluded cell list in timing optimizations.",
+      "description_tr": "Belirtilen: file that contains the don't-use-cell-list to be excluded from the liberty file during synthesis and timing optimizations. If it's not defined, this path is searched `$::env(PDK_ROOT)/$::env(PDK)/libs.tech/openlane/$::env(STD_CELL_LIBRARY)/drc_exclude.cells` and if it's not found, then the original liberty will be used as is. In other words, `DRC_EXCLUDE_CELL_LIST` contain the only excluded cell list in timing optimizations.",
+      "value_kind": "text"
+    },
+    "USE_GPIO_PADS": {
+      "category": "flow_control",
+      "required": false,
+      "default": "0",
+      "description_en": "Decides whether or not to use the gpio pads in routing by merging their LEF file set in `::env(USE_GPIO_ROUTING_LEF)` and blackboxing their verilog modules set in `::env(GPIO_PADS_VERILOG)`. 1=Enabled, 0=Disabled. <br> (Default: `0`)",
+      "description_tr": "Karar verir: or not to use the gpio pads in routing by merging their LEF file set in `::env(USE_GPIO_ROUTING_LEF)` and blackboxing their verilog modules set in `::env(GPIO_PADS_VERILOG)`. 1=Enabled, 0=Disabled. <br> (Varsayılan: `0`)",
+      "value_kind": "text"
+    },
+    "LEC_ENABLE": {
+      "category": "flow_control",
+      "required": false,
+      "default": "0",
+      "description_en": "Enables logic verification using yosys, for comparing each netlist at each stage of the flow with the previous netlist and verifying that they are logically equivalent. Warning: this will increase the runtime significantly. 1 = Enabled, 0 = Disabled <br> (Default: `0`)",
+      "description_tr": "Etkinleştirir: logic verification using yosys, for comparing each netlist at each stage of the flow with the previous netlist and verifying that they are logically equivalent. Warning: this will increase the runtime significantly. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "RUN_ROUTING_DETAILED": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables detailed routing. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: detailed routing. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "RUN_MAGIC": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables running magic and GDSII streaming. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: running magic and GDSII streaming. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "RUN_KLAYOUT": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables running Klayout and GDSII streaming. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: running Klayout and GDSII streaming. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "RUN_KLAYOUT_DRC": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables running Klayout DRC on GDS-II produced by magic. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: running Klayout DRC on GDS-II produced by magic. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "KLAYOUT_DRC_KLAYOUT_GDS": {
+      "category": "flow_control",
+      "required": false,
+      "default": "0",
+      "description_en": "Enables running Klayout DRC on GDS-II produced by Klayout. 1 = Enabled, 0 = Disabled <br> (Default: `0`)",
+      "description_tr": "Etkinleştirir: running Klayout DRC on GDS-II produced by Klayout. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "RUN_KLAYOUT_XOR": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables running Klayout XOR on 2 GDS-IIs, the defaults are the one produced by magic vs the one produced by klayout. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: running Klayout XOR on 2 GDS-IIs, the defaults are the one produced by magic vs the one produced by klayout. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "KLAYOUT_XOR_GDS": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "If `RUN_KLAYOUT_XOR` is enabled, this will enable producing a GDS output from the XOR along with it's PNG export. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "If `RUN_KLAYOUT_XOR` is enabled, this will enable producing a GDS output from the XOR along with it's PNG export. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "KLAYOUT_XOR_XML": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "If `RUN_KLAYOUT_XOR` is enabled, this will enable producing an XML output from the XOR. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "If `RUN_KLAYOUT_XOR` is enabled, this will enable producing an XML output from the XOR. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "TAKE_LAYOUT_SCROT": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables running Klayout to take a PNG screenshot of the produced layout (currently configured to run on the results of each stage).1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: running Klayout to take a PNG screenshot of the produced layout (currently configured to run on the results of each stage).1 = Enabled, 0 = Disabled <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "RUN_SIMPLE_CTS": {
+      "category": "flow_control",
+      "required": false,
+      "default": "0",
+      "description_en": "Enables inserting simple clock tree after synthesis .1 = Enabled, 0 = Disabled <br> (Default: `0`)",
+      "description_tr": "Etkinleştirir: inserting simple clock tree after synthesis .1 = Enabled, 0 = Disabled <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "FILL_INSERTION": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables fill cells insertion after cts (if enabled) .1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: fill cells insertion after cts (if enabled) .1 = Enabled, 0 = Disabled <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "TAP_DECAP_INSERTION": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Enables tap and decap cells insertion after floorplanning (if enabled) .1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Etkinleştirir: tap and decap cells insertion after floorplanning (if enabled) .1 = Enabled, 0 = Disabled <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "DIODE_INSERTION_STRATEGY": {
+      "category": "flow_control",
+      "required": false,
+      "default": "3",
+      "description_en": "Specifies the insertion strategy of diodes to be used in the flow. 0 = No diode insertion, 1 = Spray diodes, 2 = insert fake diodes and replace them with real diodes if needed. 3= use FastRoute Antenna Avoidance flow, 4 = Use Sylvian's Custom Script for diode insertion on design pins and smartly inserting needed diodes inside the design, 5 = a mix of strategy 2 and 4. <br> (Default: `3`)",
+      "description_tr": "Belirtilen: insertion strategy of diodes to be used in the flow. 0 = No diode insertion, 1 = Spray diodes, 2 = insert fake diodes and replace them with real diodes if needed. 3= use FastRoute Antenna Avoidance flow, 4 = Use Sylvian's Custom Script for diode insertion on design pins and smartly inserting needed diodes inside the design, 5 = a mix of strategy 2 and 4. <br> (Varsayılan: `3`)",
+      "value_kind": "text"
+    },
+    "WIDEN_SITE": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies the new virtual width of the site to be used in all stages up to diode insertion, then switched back to the original site width. It can be either a factor or an absolute value controlled by `WIDEN_SITE_IS_FACTOR` <br> (Default: `1`)",
+      "description_tr": "Belirtilen: new virtual width of the site to be used in all stages up to diode insertion, then switched back to the original site width. It can be either a factor or an absolute value controlled by `WIDEN_SITE_IS_FACTOR` <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "WIDEN_SITE_IS_FACTOR": {
+      "category": "flow_control",
+      "required": false,
+      "default": "1",
+      "description_en": "Specifies whether the given `WIDEN_SITE` should be treated as a factor or an absolute value. 0 = absolute, 1 = factor <br> (Default: `1`)",
+      "description_tr": "Belirler: the given `WIDEN_SITE` should be treated as a factor or an absolute value. 0 = absolute, 1 = factor <br> (Varsayılan: `1`)",
+      "value_kind": "text"
+    },
+    "RUN_SPEF_EXTRACTION": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies whether or not to run SPEF extraction on the routed DEF. 1=enabled 0=disabled <br> Default: `1`",
+      "description_tr": "Belirler: or not to run SPEF extraction on the routed DEF. 1=enabled 0=disabled <br> Varsayılan: `1`",
+      "value_kind": "text"
+    },
+    "SPEF_WIRE_MODEL": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the wire model used in SPEF extraction. Options are `L` or `Pi`  <br> Default: `L`",
+      "description_tr": "Belirtilen: wire model used in SPEF extraction. Options are `L` or `Pi`  <br> Varsayılan: `L`",
+      "value_kind": "text"
+    },
+    "SPEF_EDGE_CAP_FACTOR": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies the edge capacitance factor used in SPEF extraction. Ranges from 0 to 1 <br> Default: `1`",
+      "description_tr": "Belirtilen: edge capacitance factor used in SPEF extraction. Ranges from 0 to 1 <br> Varsayılan: `1`",
+      "value_kind": "text"
+    },
+    "GENERATE_FINAL_SUMMARY_REPORT": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies whether or not to generate a final summary report after the run is completed. Check command `generate_final_summary_report`. 1=enabled 0=disabled <br> Default: `1`",
+      "description_tr": "Belirler: or not to generate a final summary report after the run is completed. Check command `generate_final_summary_report`. 1=enabled 0=disabled <br> Varsayılan: `1`",
+      "value_kind": "text"
+    },
+    "MAGIC_CONVERT_DRC_TO_RDB": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Specifies whether or not generate a Calibre RDB out of the magic.drc report. Result is saved in `<run_path>/results/magic/`. 1=enabled 0=disabled <br> Default: `1`",
+      "description_tr": "Belirler: or not generate a Calibre RDB out of the magic.drc report. Result is saved in `<run_path>/results/magic/`. 1=enabled 0=disabled <br> Varsayılan: `1`",
+      "value_kind": "text"
+    },
+    "RUN_CVC": {
+      "category": "flow_control",
+      "required": false,
+      "default": null,
+      "description_en": "Runs CVC on the output spice, which is a Circuit Validity Checker. Voltage aware ERC checker for CDL netlists. Thus, it controls the command `run_lef_cvc`. 1=Enabled, 0=Disabled. <br> Default: `1`",
+      "description_tr": "Runs CVC on the output spice, which is a Circuit Validity Checker. Voltage aware ERC checker for CDL netlists. Thus, it controls the command `run_lef_cvc`. 1=Enabled, 0=Disabled. <br> Varsayılan: `1`",
+      "value_kind": "text"
+    },
+    "CHECK_UNMAPPED_CELLS": {
+      "category": "checkers",
+      "required": false,
+      "default": "1",
+      "description_en": "Checks if there are unmapped cells after synthesis and aborts if any was found. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Kontrol eder: there are unmapped cells after synthesis and aborts if any was found. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "CHECK_ASSIGN_STATEMENTS": {
+      "category": "checkers",
+      "required": false,
+      "default": "0",
+      "description_en": "Checks for assign statement in the generated gate level netlist and aborts of any was found.1 = Enabled, 0 = Disabled <br> (Default: `0`)",
+      "description_tr": "Kontrol eder: assign statement in the generated gate level netlist and aborts of any was found.1 = Enabled, 0 = Disabled <br> (Varsayılan: `0`)",
+      "value_kind": "flag"
+    },
+    "QUIT_ON_TR_DRC": {
+      "category": "checkers",
+      "required": false,
+      "default": "1",
+      "description_en": "Checks for DRC violations after routing and exits the flow if any was found. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Kontrol eder: DRC violations after routing and exits the flow if any was found. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "QUIT_ON_MAGIC_DRC": {
+      "category": "checkers",
+      "required": false,
+      "default": "1",
+      "description_en": "Checks for DRC violations after magic DRC is executed and exits the flow if any was found. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Kontrol eder: DRC violations after magic DRC is executed and exits the flow if any was found. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "QUIT_ON_ILLEGAL_OVERLAPS": {
+      "category": "checkers",
+      "required": false,
+      "default": "1",
+      "description_en": "Checks for illegal overlaps during magic extraction. In some cases, these imply existing undetected shorts in the design. It also exits the flow if any was found. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Kontrol eder: illegal overlaps during magic extraction. In some cases, these imply existing undetected shorts in the design. It also exits the flow if any was found. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    },
+    "QUIT_ON_LVS_ERROR": {
+      "category": "checkers",
+      "required": false,
+      "default": "1",
+      "description_en": "Checks for LVS errors after netgen LVS is executed and exits the flow if any was found. 1 = Enabled, 0 = Disabled <br> (Default: `1`)",
+      "description_tr": "Kontrol eder: LVS errors after netgen LVS is executed and exits the flow if any was found. 1 = Açık, 0 = Kapalı <br> (Varsayılan: `1`)",
+      "value_kind": "flag"
+    }
+  }
+}

@@ -10,11 +10,44 @@ import ollama
 
 from app.services.ollama_config import load_ollama_prefs
 from app.services.ollama_runtime import ensure_ollama_running, resolve_ollama_base_url_sync
+from app.services.text_format import merge_stream_field, normalize_model_markdown
 
-_SYSTEM_PROMPT = (
+ChatMode = str  # "agent" | "plan"
+
+_BASE_SYSTEM = (
     "You are an ASIC EDA assistant for LibreLane/OpenLane RTL-to-GDS flows. "
-    "Answer concisely in Turkish when the user writes in Turkish."
+    "Answer in Turkish when the user writes in Turkish. "
+    "Always format replies in valid Markdown: use blank lines between paragraphs, "
+    "## headings for sections, numbered or bullet lists for steps, and fenced ```code``` blocks for Verilog/config. "
+    "Never glue words together without spaces."
 )
+
+_MODE_PROMPTS: dict[str, str] = {
+    "agent": (
+        "Mode: AGENT. Answer directly and help execute the user's design task. "
+        "Be concise; include code or file paths when relevant. "
+        "When proposing file edits, use this exact format for each file (full file content, not a patch):\n"
+        "**Dosya:** `relative/path/from/project/root`\n"
+        "```verilog\n"
+        "<full file content>\n"
+        "```\n"
+        "The IDE shows a red/green diff and waits for user approval before writing to disk. "
+        "Do not claim files were saved until the user approves."
+    ),
+    "plan": (
+        "Mode: PLAN. Do not claim you ran tools or changed files. "
+        "Produce a clear step-by-step plan in Markdown before any implementation detail. "
+        "Structure: **Hedef**, **Adımlar** (numbered list), **Riskler**, **Sonraki aksiyon**. "
+        "The IDE will save your reply under plans/ for user review and approval. "
+        "Wait for user confirmation before describing execution."
+    ),
+}
+
+
+def _system_prompt(mode: str | None) -> str:
+    key = (mode or "agent").strip().lower()
+    extra = _MODE_PROMPTS.get(key, _MODE_PROMPTS["agent"])
+    return f"{_BASE_SYSTEM}\n\n{extra}"
 
 
 @dataclass(frozen=True)
@@ -150,7 +183,7 @@ def _ollama_chat(messages: list[dict[str, str]], *, max_tokens: int) -> ChatRepl
 
 def analyze_log(log_text: str) -> str:
     messages = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "system", "content": _system_prompt("agent")},
         {
             "role": "user",
             "content": (
@@ -172,8 +205,13 @@ def analyze_log(log_text: str) -> str:
     return "Ollama bos yanit dondurdu."
 
 
-def build_chat_messages(message: str, history: Iterable[Mapping[str, str]] | None = None) -> list[dict[str, str]]:
-    messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+def build_chat_messages(
+    message: str,
+    history: Iterable[Mapping[str, str]] | None = None,
+    *,
+    mode: str | None = None,
+) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = [{"role": "system", "content": _system_prompt(mode)}]
     for item in history or ():
         role = item.get("role")
         content = item.get("content")
@@ -183,30 +221,15 @@ def build_chat_messages(message: str, history: Iterable[Mapping[str, str]] | Non
     return messages
 
 
-def merge_stream_field(acc: str, piece: str) -> str:
-    """Ollama akisinda kimi surumler birikimli tam metin, kimi parca (delta) gonderebilir."""
-    piece = piece.strip() if piece else ""
-    if not piece:
-        return acc
-    if not acc:
-        return piece
-    if piece.startswith(acc):
-        return piece
-    if len(piece) > len(acc) and acc == piece[: len(acc)]:
-        return piece
-    if acc.startswith(piece) and len(acc) > len(piece):
-        return acc
-    return acc + piece
-
-
 async def aiter_chat_stream(
     message: str,
     history: Iterable[Mapping[str, str]] | None = None,
     *,
     max_tokens: int = 900,
+    mode: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Ollama /api/chat NDJSON akisi; her satirda birikimli thinking/content (varsa) dondurur."""
-    messages = build_chat_messages(message, history)
+    messages = build_chat_messages(message, history, mode=mode)
     ensure_ollama_running()
     prefs = load_ollama_prefs()
     base_url = resolve_ollama_base_url_sync(prefs) or prefs.base_url.rstrip("/")
@@ -248,10 +271,12 @@ async def aiter_chat_stream(
                             continue
                         last_sig = sig
                         out: dict[str, Any] = {}
-                        if thinking_acc.strip():
-                            out["thinking"] = thinking_acc.strip()
-                        if content_acc.strip():
-                            out["content"] = content_acc.strip()
+                        th_norm = normalize_model_markdown(thinking_acc)
+                        co_norm = normalize_model_markdown(content_acc)
+                        if th_norm:
+                            out["thinking"] = th_norm
+                        if co_norm:
+                            out["content"] = co_norm
                         if out or done:
                             yield out
 
@@ -274,6 +299,15 @@ async def aiter_chat_stream(
         yield part
 
 
-def chat_reply(message: str, history: Iterable[Mapping[str, str]] | None = None) -> ChatReply:
-    messages = build_chat_messages(message, history)
-    return _ollama_chat(messages, max_tokens=900)
+def chat_reply(
+    message: str,
+    history: Iterable[Mapping[str, str]] | None = None,
+    *,
+    mode: str | None = None,
+) -> ChatReply:
+    messages = build_chat_messages(message, history, mode=mode)
+    result = _ollama_chat(messages, max_tokens=900)
+    return ChatReply(
+        text=normalize_model_markdown(result.text) or "",
+        thinking=normalize_model_markdown(result.thinking),
+    )

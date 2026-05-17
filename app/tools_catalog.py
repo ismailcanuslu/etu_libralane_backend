@@ -4,6 +4,7 @@ from typing import Dict, List, Literal
 
 from app.core.config import get_settings
 from app.openlane1_manifest import load_openlane1_manifest
+from app.services.openlane_layout import simulation_verilog_shell, verilog_glob_shell_var
 
 _settings = get_settings()
 ToolKind = Literal["binary", "probe", "flow"]
@@ -139,9 +140,9 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         description="efabless/openlane imajında Yosys ile Verilog dosyalarının okunup okunamadığını dener.",
         image=_RUNNER,
         cmd=_shell(
-            "set -e; ls *.v >/dev/null 2>&1 || { echo 'no .v files'; exit 1; }; "
+            f"set -e; {verilog_glob_shell_var()}; "
             "command -v yosys >/dev/null 2>&1 || { echo 'yosys bulunamadi'; exit 2; }; "
-            "yosys -p 'read_verilog *.v; stat' && echo 'SMOKE OK'"
+            'yosys -p "read_verilog $VF; stat" && echo "SMOKE OK"'
         ),
         group="tools",
         badge="Hızlı",
@@ -152,7 +153,10 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         label="RTL Lint",
         description="efabless/openlane imajında Yosys ile hiyerarşi ve okunabilirlik kontrolü.",
         image=_RUNNER,
-        cmd=_require_yosys("read_verilog *.v; hierarchy -check; stat"),
+        cmd=_shell(
+            f"set -e; {verilog_glob_shell_var()}; "
+            'yosys -p "read_verilog $VF; hierarchy -check; stat"'
+        ),
         group="tools",
         requires_verilog=True,
     ),
@@ -162,10 +166,11 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         description="efabless/openlane imajında iverilog/vvp varsa testbench koşturur.",
         image=_RUNNER,
         cmd=_shell(
-            "set -e; "
+            f"set -e; "
             "command -v iverilog >/dev/null 2>&1 && command -v vvp >/dev/null 2>&1 || "
-            "{ echo 'iverilog/vvp efabless/openlane imajinda bulunamadi'; exit 2; }; "
-            "iverilog -o sim *.v tb_*.v && vvp sim"
+            "{{ echo 'iverilog/vvp efabless/openlane imajinda bulunamadi'; exit 2; }}; "
+            f"{simulation_verilog_shell()}; "
+            "iverilog -o sim.vvp $VF $TB && vvp sim.vvp"
         ),
         group="build",
         requires_verilog=True,
@@ -175,7 +180,10 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         label="Sentez",
         description="efabless/openlane imajında Yosys ile gate-level netlist üretir.",
         image=_RUNNER,
-        cmd=_require_yosys("read_verilog *.v; synth; write_verilog netlist.v"),
+        cmd=_shell(
+            f"set -e; {verilog_glob_shell_var()}; "
+            'yosys -p "read_verilog $VF; synth; write_verilog netlist.v"'
+        ),
         group="build",
         requires_verilog=True,
     ),
@@ -185,8 +193,9 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
         description="efabless/openlane imajında Yosys ile hızlı RTL doğrulaması.",
         image=_RUNNER,
         cmd=_shell(
-            "set -e; command -v yosys >/dev/null 2>&1 || { echo 'yosys bulunamadi'; exit 2; }; "
-            "yosys -p 'read_verilog *.v; stat' && echo 'VERIFY OK'"
+            f"set -e; command -v yosys >/dev/null 2>&1 || {{ echo 'yosys bulunamadi'; exit 2; }}; "
+            f"{verilog_glob_shell_var()}; "
+            'yosys -p "read_verilog $VF; stat" && echo "VERIFY OK"'
         ),
         group="build",
         requires_verilog=True,

@@ -10,6 +10,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.terminal_tabs import registry as terminal_registry
+from app.services.openlane_layout import resolve_design_name
 from app.services.tool_runner import cancel_job, execute_job
 from app.tools_catalog import build_tool_command, get_tool
 
@@ -32,8 +33,8 @@ async def start_run(req: RunRequest):
         raise HTTPException(status_code=400, detail=f"action '{req.action}' is not enabled in this build")
 
     design_name = req.design_name.strip() if req.design_name else None
-    if spec.kind == "flow" and not design_name:
-        design_name = req.project_id
+    if spec.kind == "flow":
+        design_name = resolve_design_name(req.project_id, design_name)
 
     try:
         command = build_tool_command(spec, design_name=design_name, extra_args=req.args)

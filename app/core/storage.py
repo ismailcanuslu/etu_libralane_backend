@@ -57,7 +57,10 @@ def _stat_object(project_id: str, key: str) -> ObjectInfo:
 
 
 def ensure_project(project_id: str) -> None:
+    from app.services.project_scaffold import scaffold_openlane_project
+
     project_dir(project_id, create=True)
+    scaffold_openlane_project(project_id)
 
 
 def ensure_bucket(bucket: str) -> None:

@@ -1,16 +1,29 @@
+import os
 from functools import lru_cache
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
         case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
-    db_path: str = "/data/jobs.db"
+    db_path: str = os.environ.get(
+        "DB_PATH",
+        str(_BACKEND_ROOT / "data" / "jobs.db"),
+    )
 
-    workspace_root: str = "/workspace"
+    workspace_root: str = os.environ.get(
+        "WORKSPACE_ROOT",
+        str(_BACKEND_ROOT / "workspace"),
+    )
 
     jobs_host_dir: str = "/var/lib/librelane/jobs"
     jobs_workdir_in_runner: str = "/work"

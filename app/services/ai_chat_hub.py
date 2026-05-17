@@ -63,6 +63,7 @@ class AIChatHub:
         request_id = payload.get("id")
         message = payload.get("message")
         history = payload.get("history")
+        mode = payload.get("mode")
         if not isinstance(request_id, str) or not request_id.strip():
             await self._send(websocket, {"type": "error", "message": "id is required"})
             return
@@ -78,18 +79,30 @@ class AIChatHub:
                 {"type": "error", "id": request_id, "message": "history must be a list"},
             )
             return
+        if mode is not None and not isinstance(mode, str):
+            await self._send(
+                websocket,
+                {"type": "error", "id": request_id, "message": "mode must be a string"},
+            )
+            return
 
         normalized_history = history or []
+        chat_mode = (mode.strip().lower() if isinstance(mode, str) and mode.strip() else "agent")
+        if chat_mode not in ("agent", "plan"):
+            chat_mode = "agent"
         async with self._lock:
             self._deliveries[request_id] = ChatDelivery(request_id=request_id, status="queued")
         await self._send(websocket, {"type": "status", "id": request_id, "status": "queued"})
-        asyncio.create_task(self._process_chat(request_id, message.strip(), normalized_history))
+        asyncio.create_task(
+            self._process_chat(request_id, message.strip(), normalized_history, chat_mode)
+        )
 
     async def _process_chat(
         self,
         request_id: str,
         message: str,
         history: list[Any],
+        mode: str,
     ) -> None:
         async with self._lock:
             delivery = self._deliveries.get(request_id)
@@ -102,7 +115,7 @@ class AIChatHub:
         last_reply = ""
         try:
             stream_ok = False
-            async for part in aiter_chat_stream(message, history, max_tokens=900):
+            async for part in aiter_chat_stream(message, history, max_tokens=900, mode=mode):
                 stream_ok = True
                 th = part.get("thinking")
                 co = part.get("content")
@@ -122,7 +135,7 @@ class AIChatHub:
             await self._finish(request_id, reply=last_reply, thinking=last_thinking)
         except Exception as exc:  # noqa: BLE001
             try:
-                result = await asyncio.to_thread(chat_reply, message, history)
+                result = await asyncio.to_thread(chat_reply, message, history, mode=mode)
                 await self._finish(request_id, reply=result.text, thinking=result.thinking)
             except Exception as fallback_exc:  # noqa: BLE001
                 await self._finish(request_id, error=f"Akis: {exc}; yedek: {fallback_exc}")
