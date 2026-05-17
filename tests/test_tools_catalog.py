@@ -80,6 +80,8 @@ class ToolsCatalogTests(unittest.TestCase):
         script = _flow_script("user_project_wrapper")
         self.assertIn("command -v flow.tcl", script)
         self.assertIn("exec flow.tcl -design 'user_project_wrapper'", script)
+        self.assertIn("TCLLIBPATH", script)
+        self.assertIn("json/json.tcl", script)
         self.assertNotIn("././flow.tcl", script)
         self.assertNotIn('./"$FLOW"', script)
 

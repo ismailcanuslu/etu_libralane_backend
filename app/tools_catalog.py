@@ -41,15 +41,31 @@ def _shell(script: str) -> List[str]:
     return ["bash", "-lc", script]
 
 
+def _openlane_tcllib_setup_shell() -> str:
+    """efabless/openlane: flow.tcl-wrapped dar tclsh kullanir; json icin tcllib gerekir."""
+    return (
+        "if [ -z \"${TCLLIBPATH:-}\" ]; then "
+        "for _d in /nix/store/*-tcllib-*/lib/tcllib*; do "
+        'if [ -d "$_d" ] && [ -f "$_d/json/json.tcl" ]; then '
+        'export TCLLIBPATH="$_d"; break; '
+        "fi; done; fi; "
+        'if [ -z "${TCLLIBPATH:-}" ]; then '
+        "echo 'TCLLIBPATH: tcllib json paketi bulunamadi (OpenLane imaji)'; exit 2; "
+        "fi; "
+    )
+
+
 def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
     args = ""
     if extra_args:
         args = " " + " ".join(shlex.quote(value) for value in extra_args)
     design = shlex.quote(design_name)
+    tcllib = _openlane_tcllib_setup_shell()
     # Proje kokundeki flow.tcl genelde Tcl kaynak dosyasidir (+x degil); ./flow.tcl Permission denied verir.
     # efabless/openlane imajinda PATH'teki flow.tcl openlane/<design>/config.json ile calisir.
     return (
         "set -e; "
+        f"{tcllib}"
         "if command -v flow.tcl >/dev/null 2>&1; then "
         f"exec flow.tcl -design {design}{args}; "
         "fi; "
