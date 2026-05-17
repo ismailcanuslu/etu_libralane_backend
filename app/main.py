@@ -12,6 +12,7 @@ from app.routes.files import router as files_router
 from app.routes.terminal import router as terminal_router
 from app.routes.layout import router as layout_router
 from app.routes.autonom import router as autonom_router
+from app.routes.system import router as system_router
 
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.include_router(files_router)
 app.include_router(terminal_router)
 app.include_router(layout_router)
 app.include_router(autonom_router)
+app.include_router(system_router)
 
 
 @app.get("/")

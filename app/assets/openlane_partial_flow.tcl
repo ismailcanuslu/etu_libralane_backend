@@ -98,8 +98,21 @@ if {$failed} {
     flow_fail
 }
 
-save_final_views
+set want_gds 0
+foreach s $selected {
+    if {$s eq "gds_magic" || $s eq "gds_klayout"} {
+        set want_gds 1
+        break
+    }
+}
+
 calc_total_runtime
 save_state
-generate_final_summary_report
-puts_success "Secili OpenLane asamalari tamamlandi ($start_step → $end_step)."
+
+if {$want_gds} {
+    save_final_views
+    generate_final_summary_report
+    puts_success "Secili OpenLane asamalari tamamlandi ($start_step → $end_step), GDS dahil."
+} else {
+    puts_success "Secili OpenLane asamalari tamamlandi ($start_step → $end_step). GDS/DRC/LVS atlandi."
+}

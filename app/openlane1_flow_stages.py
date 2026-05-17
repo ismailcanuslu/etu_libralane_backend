@@ -96,6 +96,15 @@ OPENLANE1_FLOW_STAGES: list[FlowStage] = [
 OPENLANE1_FLOW_STAGE_IDS: list[str] = [s["id"] for s in OPENLANE1_FLOW_STAGES]
 OPENLANE1_GDS_STAGE_IDS: frozenset[str] = frozenset({"gds_magic", "gds_klayout"})
 
+# Atölye / hızlı deneme: placement sonrası CTS, routing, GDS yok
+OPENLANE1_PLACEMENT_PRESET_IDS: list[str] = OPENLANE1_FLOW_STAGE_IDS[
+    : OPENLANE1_FLOW_STAGE_IDS.index("placement") + 1
+]
+
+
+def placement_flow_step_ids() -> list[str]:
+    return list(OPENLANE1_PLACEMENT_PRESET_IDS)
+
 
 def normalize_flow_steps(selected: list[str] | None) -> list[str] | None:
     """None veya tüm aşamalar → tam akış (flow.tcl). Aksi halde sıralı alt küme."""

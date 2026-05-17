@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.core import storage
 from app.models.autonom_campaign import AutonomCampaignStatus, AutonomIterationStatus
 from app.models.job import JobStatus
-from app.openlane1_flow_stages import normalize_flow_steps
+from app.openlane1_flow_stages import normalize_flow_steps, placement_flow_step_ids
 from app.services import autonom_repo, jobs_repo
 from app.services.autonom_spec import (
     AutonomCampaignSpec,
@@ -141,9 +141,10 @@ async def execute_campaign(campaign_id: str) -> None:
     input_files_base = list(spec.get("input_files") or [])
     build_actions = list(spec["build_actions"])
     flow_steps = None
-    if "openlane1-flow" in build_actions and spec.get("openlane_flow_steps"):
+    if "openlane1-flow" in build_actions:
+        raw_steps = spec.get("openlane_flow_steps") or placement_flow_step_ids()
         try:
-            flow_steps = normalize_flow_steps(spec["openlane_flow_steps"])
+            flow_steps = normalize_flow_steps(raw_steps)
         except ValueError as exc:
             await _fail_campaign(campaign_id, str(exc))
             return

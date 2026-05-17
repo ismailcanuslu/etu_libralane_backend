@@ -3,6 +3,7 @@ import unittest
 from app.openlane1_flow_stages import (
     OPENLANE1_FLOW_STAGE_IDS,
     normalize_flow_steps,
+    placement_flow_step_ids,
 )
 from app.services.job_command import decode_job_command, encode_job_command
 from app.tools_catalog import build_tool_command, get_tool
@@ -15,6 +16,12 @@ class Openlane1FlowStagesTests(unittest.TestCase):
     def test_normalize_subset_preserves_order(self) -> None:
         picked = ["synthesis", "floorplan", "placement"]
         self.assertEqual(normalize_flow_steps(picked), picked)
+
+    def test_placement_preset_ends_at_placement(self) -> None:
+        preset = placement_flow_step_ids()
+        self.assertEqual(preset[-1], "placement")
+        self.assertNotIn("cts", preset)
+        self.assertEqual(normalize_flow_steps(preset), preset)
 
     def test_normalize_unknown_raises(self) -> None:
         with self.assertRaises(ValueError):
