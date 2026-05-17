@@ -8,7 +8,11 @@ from app.services.caravel_layout import (
     find_caravel_openlane_design,
     has_caravel_scaffold,
 )
-from app.services.openlane_layout import resolve_design_name, verilog_glob_shell_var
+from app.services.openlane_layout import (
+    resolve_design_name,
+    resolve_flow_design_arg,
+    verilog_glob_shell_var,
+)
 from app.services.openlane_layout import flow_input_keys
 from app.services.project_scaffold import (
     GUIDE_FILENAME,
@@ -64,6 +68,10 @@ class CaravelScaffoldTests(unittest.TestCase):
             with patch("app.services.openlane_layout.project_dir", return_value=base):
                 with patch("app.services.openlane_layout.has_caravel_scaffold", return_value=True):
                     self.assertEqual(resolve_design_name(project_id), CARAVEL_WRAPPER_DESIGN)
+                    self.assertEqual(
+                        resolve_flow_design_arg(project_id),
+                        "openlane/user_project_wrapper",
+                    )
 
     def test_verilog_glob_prefers_caravel_rtl(self) -> None:
         script = verilog_glob_shell_var()
@@ -92,6 +100,10 @@ class CaravelScaffoldTests(unittest.TestCase):
             self.assertIn("flow.tcl", keys)
             self.assertIn("openlane/user_project_wrapper/config.json", keys)
             self.assertTrue(any(k.endswith(".v") for k in keys))
+            self.assertEqual(
+                resolve_flow_design_arg(project_id),
+                "openlane/user_project_wrapper",
+            )
 
 
 if __name__ == "__main__":

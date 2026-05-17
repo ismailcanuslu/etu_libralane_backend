@@ -8,7 +8,11 @@ import shlex
 
 from app.core.config import get_settings
 from app.core import storage
-from app.services.openlane_layout import flow_input_keys, resolve_design_name
+from app.services.openlane_layout import (
+    flow_input_keys,
+    resolve_design_name,
+    resolve_flow_design_arg,
+)
 from app.services.pdk_info import get_pdk_runtime_info
 from app.tools_catalog import build_tool_command, get_tool
 
@@ -77,8 +81,15 @@ def build_run_preview(
         raise ValueError(f"unknown action: {action}")
 
     design = resolve_design_name(project_id, design_name) if spec.kind == "flow" else None
+    flow_design_arg = (
+        resolve_flow_design_arg(project_id, design_name) if spec.kind == "flow" else None
+    )
     try:
-        command = build_tool_command(spec, design_name=design, extra_args=None)
+        command = build_tool_command(
+            spec,
+            design_name=flow_design_arg if spec.kind == "flow" else design,
+            extra_args=None,
+        )
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
 

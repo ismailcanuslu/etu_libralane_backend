@@ -100,7 +100,8 @@ def _build_openlane1_catalog() -> Dict[str, ToolSpec]:
             label="OpenLane1 Flow",
             description=(
                 "Caravel user_project_wrapper hardening: flow.tcl + "
-                "openlane/user_project_wrapper/config.json (sky130, tape-out yolu)."
+                "openlane/user_project_wrapper/config.json "
+                "(flow.tcl -design openlane/user_project_wrapper)."
             ),
             image=_RUNNER,
             cmd=[],

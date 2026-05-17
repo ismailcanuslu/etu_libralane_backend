@@ -77,9 +77,9 @@ class ToolsCatalogTests(unittest.TestCase):
         self.assertEqual(spec.group, "build")
 
     def test_flow_script_uses_path_flow_not_dot_slash(self) -> None:
-        script = _flow_script("user_project_wrapper")
+        script = _flow_script("openlane/user_project_wrapper")
         self.assertIn("command -v flow.tcl", script)
-        self.assertIn("exec flow.tcl -design 'user_project_wrapper'", script)
+        self.assertIn("exec flow.tcl -design 'openlane/user_project_wrapper'", script)
         self.assertIn("TCLLIBPATH", script)
         self.assertIn("json/json.tcl", script)
         self.assertNotIn("././flow.tcl", script)
@@ -88,10 +88,10 @@ class ToolsCatalogTests(unittest.TestCase):
     def test_build_tool_command_for_flow(self) -> None:
         spec = get_tool("openlane1-flow")
         assert spec is not None
-        cmd = build_tool_command(spec, design_name="user_project_wrapper")
+        cmd = build_tool_command(spec, design_name="openlane/user_project_wrapper")
         self.assertEqual(cmd[0], "bash")
         self.assertEqual(cmd[1], "-lc")
-        self.assertIn("exec flow.tcl -design 'user_project_wrapper'", cmd[2])
+        self.assertIn("exec flow.tcl -design 'openlane/user_project_wrapper'", cmd[2])
 
     def test_all_catalog_tools_use_openlane_runner(self) -> None:
         expected = os.environ.get("RUNNER_IMAGE_OPENLANE", "efabless/openlane:ci2504-dev-amd64")

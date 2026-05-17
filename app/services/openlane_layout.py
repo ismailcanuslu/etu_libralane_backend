@@ -81,13 +81,42 @@ def flow_input_keys(project_id: str, design_name: str | None = None) -> list[str
 
 def resolve_design_name(project_id: str, explicit: str | None = None) -> str:
     if explicit and explicit.strip():
-        return explicit.strip()
+        raw = explicit.strip().replace("\\", "/")
+        if "/" in raw:
+            return raw.rstrip("/").split("/")[-1]
+        return raw
     if has_caravel_scaffold(project_id):
         return CARAVEL_WRAPPER_DESIGN
     found = find_openlane_design(project_id)
     if found:
         return found
     return design_slug_from_project(project_id)
+
+
+def resolve_flow_design_arg(project_id: str, explicit: str | None = None) -> str:
+    """
+    OpenLane 1.2 `flow.tcl -design` argumani: DESIGN_DIR = cwd/<arg>.
+    Caravel config'leri openlane/<design>/ altinda; yalnizca design adi yetmez.
+    """
+    if explicit and explicit.strip():
+        raw = explicit.strip().replace("\\", "/").rstrip("/")
+        if "/" in raw:
+            return raw
+        name = raw
+    else:
+        name = resolve_design_name(project_id, None)
+
+    base = project_dir(project_id)
+    for rel in (f"openlane/{name}", name, f"designs/{name}"):
+        d = base / rel
+        if d.is_dir() and (
+            (d / "config.json").is_file() or (d / "config.tcl").is_file()
+        ):
+            return rel.replace("\\", "/")
+
+    if has_caravel_scaffold(project_id) or (base / "openlane").is_dir():
+        return f"openlane/{name}"
+    return name
 
 
 def verilog_glob_shell_var() -> str:

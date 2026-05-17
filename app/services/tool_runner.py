@@ -23,7 +23,11 @@ from app.models.job import JobStatus
 from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.layout_preview import FLOW_LAYOUT_PNG_NAME, generate_flow_layout_png_preview
-from app.services.openlane_layout import flow_input_keys, resolve_design_name
+from app.services.openlane_layout import (
+    flow_input_keys,
+    resolve_design_name,
+    resolve_flow_design_arg,
+)
 from app.services.project_scaffold import ensure_missing_caravel_flow_files
 from app.services.runner import (
     create_container,
@@ -34,7 +38,7 @@ from app.services.runner import (
     stream_container,
     wait_container,
 )
-from app.tools_catalog import ToolSpec, get_tool
+from app.tools_catalog import ToolSpec, build_tool_command, get_tool
 
 
 _settings = get_settings()
@@ -96,6 +100,12 @@ def _log_path(job_id: str) -> str:
 
 
 def _job_command(job, spec: ToolSpec) -> list[str]:
+    if spec.kind == "flow":
+        return build_tool_command(
+            spec,
+            design_name=resolve_flow_design_arg(job.project_id),
+            extra_args=None,
+        )
     try:
         parsed = json.loads(job.command)
         if isinstance(parsed, list) and parsed:
