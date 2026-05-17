@@ -55,7 +55,15 @@ def _needs_space_between(acc: str, piece: str) -> bool:
     a, b = acc[-1], piece[0]
     if a.islower() and b.isupper():
         return True
-    if a.isalnum() and b.isalnum() and not _is_likely_suffix_piece(piece):
+    if not (a.isalnum() and b.isalnum()):
+        return False
+    if _is_likely_suffix_piece(piece):
+        return False
+    # Kisa kucuk parca: akista kelime ortasi (TR: ona+ylı, yoru+m)
+    if len(piece) <= 4 and piece.islower() and a.islower():
+        return False
+    # Uzun kucuk parca: yeni kelime (Merhaba + dunya)
+    if len(piece) >= 5 and piece.islower():
         return True
     return False
 

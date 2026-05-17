@@ -122,6 +122,14 @@ def _runner_env(spec: ToolSpec) -> dict[str, str]:
     return env
 
 
+def _job_wait_timeout(action: str) -> Optional[int]:
+    """Simülasyon için üst sınır; Flow için RUNNER_TIMEOUT_SECONDS (0 = sınırsız)."""
+    if action == "simulation":
+        return 600
+    t = _settings.runner_timeout_seconds
+    return int(t) if t and int(t) > 0 else None
+
+
 def _runner_extra_volumes(spec: ToolSpec) -> dict:
     if not spec.requires_pdk or not _settings.openlane_pdk_host_path:
         return {}
@@ -304,14 +312,24 @@ async def execute_job(job_id: str) -> None:
 
             # Container oluştur (Docker SDK bloklayıcı — event loop'u kilitlemesin)
             try:
-                container = await asyncio.to_thread(
-                    create_container,
-                    spec.image,
-                    command,
-                    workdir,
-                    env=_runner_env(spec),
-                    extra_volumes=_runner_extra_volumes(spec),
+                container = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        create_container,
+                        spec.image,
+                        command,
+                        workdir,
+                        env=_runner_env(spec),
+                        extra_volumes=_runner_extra_volumes(spec),
+                    ),
+                    timeout=120,
                 )
+            except asyncio.TimeoutError:
+                await _fail_job(
+                    job_id,
+                    message="Runner container 120s içinde oluşturulamadı (Docker)",
+                    error_message="container create timeout",
+                )
+                return
             except Exception as e:  # noqa: BLE001
                 await _fail_job(
                     job_id,
@@ -322,7 +340,13 @@ async def execute_job(job_id: str) -> None:
 
             jobs_repo.mark_started(job_id, container_id=container.id)
             await broker.publish(
-                job_id, "status", {"status": "running", "container_id": container.id}
+                job_id,
+                "status",
+                {
+                    "status": "running",
+                    "container_id": container.id,
+                    "message": f"{spec.label} çalışıyor…",
+                },
             )
 
             # stream + log dosyası
@@ -347,7 +371,9 @@ async def execute_job(job_id: str) -> None:
                     log_file.write(f"# stream error: {e}\n")
                     await broker.publish(job_id, "error", {"message": f"stream hatası: {e}"})
 
-                exit_code = await wait_container(container, timeout=_settings.runner_timeout_seconds)
+                exit_code = await wait_container(
+                    container, timeout=_job_wait_timeout(job.action)
+                )
                 log_file.write(f"\n# exit_code={exit_code}\n# finished_at={_now_iso()}\n")
 
             remove_container(container)

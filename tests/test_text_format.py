@@ -21,6 +21,11 @@ def test_merge_turkish_word_boundary() -> None:
     assert merge_stream_field("Merhaba", "dunya") == "Merhaba dunya"
 
 
+def test_merge_turkish_mid_word_no_space() -> None:
+    assert merge_stream_field("ona", "ylı") == "onaylı"
+    assert merge_stream_field("yoru", "m") == "yorum"
+
+
 def test_merge_sentence_punctuation() -> None:
     assert merge_stream_field("Tamam.", "Sonraki") == "Tamam. Sonraki"
 

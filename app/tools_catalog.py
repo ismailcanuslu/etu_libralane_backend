@@ -37,7 +37,8 @@ def _require_yosys(script: str) -> List[str]:
 
 
 def _shell(script: str) -> List[str]:
-    return ["sh", "-lc", script]
+    # efabless/openlane (Nix): yosys/iverilog yalnizca bash login PATH'inde; sh ile bulunamaz
+    return ["bash", "-lc", script]
 
 
 def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
@@ -126,7 +127,10 @@ TOOL_CATALOG: Dict[str, ToolSpec] = {
             "command -v iverilog >/dev/null 2>&1 && command -v vvp >/dev/null 2>&1 || "
             "{{ echo 'iverilog/vvp efabless/openlane imajinda bulunamadi'; exit 2; }}; "
             f"{simulation_verilog_shell()}; "
-            "iverilog -o sim.vvp $VF $TB && vvp sim.vvp"
+            "iverilog -o sim.vvp $VF $TB; "
+            "if command -v timeout >/dev/null 2>&1; then "
+            "timeout --kill-after=15 600 vvp sim.vvp; "
+            "else vvp sim.vvp; fi"
         ),
         group="build",
         requires_verilog=True,
