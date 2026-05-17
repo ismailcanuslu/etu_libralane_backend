@@ -5,6 +5,7 @@ from app.core.workspace_paths import WorkspacePathError
 from app.services.pdk_info import get_pdk_runtime_info
 from app.services.run_preview import build_run_preview
 from app.services.openlane_config_catalog import load_catalog, search_variables
+from app.openlane1_flow_stages import OPENLANE1_FLOW_STAGE_IDS, flow_steps_for_api
 from app.tools_catalog import list_tools
 
 router = APIRouter(prefix="/tools", tags=["tools"])
@@ -14,6 +15,7 @@ class RunPreviewRequest(BaseModel):
     project_id: str = Field(min_length=1)
     action: str = Field(min_length=1)
     design_name: str | None = None
+    flow_steps: list[str] | None = None
 
 
 @router.get("/runtime")
@@ -47,7 +49,12 @@ def get_run_preview_query(
 @router.post("/preview")
 def post_run_preview(req: RunPreviewRequest):
     try:
-        return build_run_preview(req.project_id, req.action, design_name=req.design_name)
+        return build_run_preview(
+            req.project_id,
+            req.action,
+            design_name=req.design_name,
+            flow_steps=req.flow_steps if req.action == "openlane1-flow" else None,
+        )
     except WorkspacePathError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
@@ -69,6 +76,11 @@ def get_openlane_config_catalog(
             "variables": variables,
         }
     return catalog
+
+
+@router.get("/openlane1-flow/stages")
+def get_openlane1_flow_stages():
+    return {"stages": flow_steps_for_api(), "default_ids": list(OPENLANE1_FLOW_STAGE_IDS)}
 
 
 @router.get("")

@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     jobs_host_dir: str = "/var/lib/librelane/jobs"
     jobs_workdir_in_runner: str = "/work"
     jobs_artifacts_prefix: str = "_jobs"
+    autonom_jobs_artifacts_prefix: str = "_autonom_jobs"
+    max_concurrent_autonom_campaigns: int = 1
 
     runner_image_basic: str = "efabless/openlane:ci2504-dev-amd64"
     runner_image_openlane: str = "efabless/openlane:ci2504-dev-amd64"

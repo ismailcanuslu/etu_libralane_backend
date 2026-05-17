@@ -55,27 +55,54 @@ def _openlane_tcllib_setup_shell() -> str:
     )
 
 
-def _flow_script(design_name: str, extra_args: list[str] | None = None) -> str:
+def _flow_script(
+    design_name: str,
+    extra_args: list[str] | None = None,
+    *,
+    flow_steps: list[str] | None = None,
+) -> str:
     args = ""
     if extra_args:
         args = " " + " ".join(shlex.quote(value) for value in extra_args)
     design = shlex.quote(design_name)
     tcllib = _openlane_tcllib_setup_shell()
+    steps_env = ""
+    partial_runner = ""
+    if flow_steps:
+        joined = ",".join(flow_steps)
+        end_step = flow_steps[-1]
+        steps_env = (
+            f"export LIBRALANE_FLOW_STEPS={shlex.quote(joined)}; "
+            f"export LIBRALANE_FLOW_END={shlex.quote(end_step)}; "
+        )
+        partial_runner = (
+            "if [ -f .libralane/openlane_partial_flow.tcl ]; then "
+            f"exec tclsh .libralane/openlane_partial_flow.tcl -design {design}; "
+            "fi; "
+            "echo '.libralane/openlane_partial_flow.tcl workspace icinde bulunamadi'; exit 2; "
+        )
     # Proje kokundeki flow.tcl genelde Tcl kaynak dosyasidir (+x degil); ./flow.tcl Permission denied verir.
     # efabless/openlane imajinda PATH'teki flow.tcl openlane/<design>/config.json ile calisir.
     return (
         "set -e; "
         f"{tcllib}"
-        "if command -v flow.tcl >/dev/null 2>&1; then "
-        f"exec flow.tcl -design {design}{args}; "
-        "fi; "
-        "if [ -f flow.tcl ]; then "
-        "if [ -x flow.tcl ] && head -1 flow.tcl | grep -q '^#!'; then "
-        f"exec ./flow.tcl -design {design}{args}; "
-        "fi; "
-        f"exec tclsh flow.tcl -design {design}{args}; "
-        "fi; "
-        "echo 'flow.tcl gerekli (OpenLane runner veya proje flow.tcl)'; exit 2"
+        f"{steps_env}"
+        + (
+            partial_runner
+            if flow_steps
+            else (
+                "if command -v flow.tcl >/dev/null 2>&1; then "
+                f"exec flow.tcl -design {design}{args}; "
+                "fi; "
+                "if [ -f flow.tcl ]; then "
+                "if [ -x flow.tcl ] && head -1 flow.tcl | grep -q '^#!'; then "
+                f"exec ./flow.tcl -design {design}{args}; "
+                "fi; "
+                f"exec tclsh flow.tcl -design {design}{args}; "
+                "fi; "
+                "echo 'flow.tcl gerekli (OpenLane runner veya proje flow.tcl)'; exit 2"
+            )
+        )
     )
 
 
@@ -84,12 +111,13 @@ def build_tool_command(
     *,
     design_name: str | None = None,
     extra_args: list[str] | None = None,
+    flow_steps: list[str] | None = None,
 ) -> List[str]:
     if spec.kind != "flow":
         return list(spec.cmd)
     if not design_name:
         raise ValueError("design_name required for flow tools")
-    return _shell(_flow_script(design_name, extra_args))
+    return _shell(_flow_script(design_name, extra_args, flow_steps=flow_steps))
 
 
 def _build_openlane1_catalog() -> Dict[str, ToolSpec]:

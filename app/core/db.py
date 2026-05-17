@@ -28,11 +28,12 @@ engine = create_engine(
 
 def init_db() -> None:
     # Tablo metadata'sının yüklenmiş olması için modelleri import et.
-    from app.models import chat_history, job  # noqa: F401
+    from app.models import autonom_campaign, chat_history, job  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
     _ensure_chat_thinking_column()
     _ensure_job_input_keys_column()
+    _ensure_job_channel_columns()
 
 
 def _ensure_chat_thinking_column() -> None:
@@ -60,6 +61,22 @@ def _ensure_job_input_keys_column() -> None:
         return
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE jobs ADD COLUMN input_keys_json TEXT"))
+
+
+def _ensure_job_channel_columns() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "jobs" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("jobs")}
+    with engine.begin() as conn:
+        if "channel" not in cols:
+            conn.execute(
+                text("ALTER TABLE jobs ADD COLUMN channel TEXT NOT NULL DEFAULT 'default'")
+            )
+        if "campaign_id" not in cols:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN campaign_id TEXT"))
 
 
 @contextmanager

@@ -46,6 +46,27 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(dst, "design.v")))
         self.assertFalse(os.path.exists(os.path.join(dst, "_jobs")))
 
+    def test_exclude_autonom_jobs_prefix_on_copy(self) -> None:
+        dst = os.path.join(self.temp_dir.name, "job-workspace-autonom")
+        os.makedirs(dst, exist_ok=True)
+        with (
+            patch("app.services.project_scaffold.scaffold_openlane_project", return_value=[]),
+            patch("app.services.project_scaffold.ensure_caravel_guide", return_value=False),
+        ):
+            storage.ensure_project("demo-project")
+            storage.write_bytes("demo-project", "design.v", b"rtl")
+            storage.write_bytes(
+                "demo-project", "_autonom_jobs/camp-1/iter_0/config.json", b"{}"
+            )
+            copied = storage.copy_project_to_dir(
+                "demo-project",
+                "",
+                dst,
+                exclude_prefixes=["_jobs/", "_autonom_jobs/"],
+            )
+        self.assertEqual(len(copied), 1)
+        self.assertFalse(os.path.exists(os.path.join(dst, "_autonom_jobs")))
+
     def test_path_traversal_is_rejected(self) -> None:
         storage.ensure_project("demo-project")
         with self.assertRaises(WorkspacePathError):

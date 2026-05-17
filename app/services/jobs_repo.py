@@ -20,6 +20,8 @@ def create_job(
     command: str,
     *,
     input_keys_json: str | None = None,
+    channel: str = "default",
+    campaign_id: str | None = None,
 ) -> Job:
     job = Job(
         project_id=project_id,
@@ -27,6 +29,8 @@ def create_job(
         image=image,
         command=command,
         input_keys_json=input_keys_json,
+        channel=channel,
+        campaign_id=campaign_id,
         status=JobStatus.QUEUED,
     )
     with session_scope() as session:

@@ -154,6 +154,7 @@ def scaffold_openlane_project(project_id: str) -> list[str]:
     has_user_files = any(
         p.is_file()
         and not p.relative_to(base).as_posix().startswith("_jobs/")
+        and not p.relative_to(base).as_posix().startswith("_autonom_jobs/")
         for p in existing
     )
     if has_user_files:

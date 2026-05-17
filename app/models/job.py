@@ -32,6 +32,9 @@ class Job(SQLModel, table=True):
     command: str
     # JSON listesi: workspace'e kopyalanacak proje anahtarlari (bos = tum proje)
     input_keys_json: Optional[str] = None
+    # default | autonom — artefakt kökü (_jobs vs _autonom_jobs)
+    channel: str = Field(default="default", index=True)
+    campaign_id: Optional[str] = Field(default=None, index=True)
 
     status: JobStatus = Field(default=JobStatus.QUEUED, index=True)
     exit_code: Optional[int] = None

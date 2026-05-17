@@ -15,6 +15,7 @@ import json
 import os
 import shutil
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from app.core.config import get_settings
@@ -38,7 +39,13 @@ from app.services.runner import (
     stream_container,
     wait_container,
 )
+from app.services.artifact_paths import job_artifacts_prefix, workspace_artifact_prefixes
+from app.services.job_command import decode_job_command
 from app.tools_catalog import ToolSpec, build_tool_command, get_tool
+
+_PARTIAL_FLOW_TCL = (
+    Path(__file__).resolve().parents[1] / "assets" / "openlane_partial_flow.tcl"
+)
 
 
 _settings = get_settings()
@@ -99,19 +106,34 @@ def _log_path(job_id: str) -> str:
     return os.path.join(_job_root(job_id), "job.log")
 
 
+def _install_partial_flow_runner(workdir: str) -> None:
+    if not _PARTIAL_FLOW_TCL.is_file():
+        raise FileNotFoundError(f"openlane_partial_flow.tcl eksik: {_PARTIAL_FLOW_TCL}")
+    dest_dir = os.path.join(workdir, ".libralane")
+    os.makedirs(dest_dir, exist_ok=True)
+    shutil.copy2(_PARTIAL_FLOW_TCL, os.path.join(dest_dir, "openlane_partial_flow.tcl"))
+
+
 def _job_command(job, spec: ToolSpec) -> list[str]:
+    try:
+        argv, flow_steps = decode_job_command(job.command)
+        if spec.kind == "flow":
+            return build_tool_command(
+                spec,
+                design_name=resolve_flow_design_arg(job.project_id),
+                extra_args=None,
+                flow_steps=flow_steps,
+            )
+        if argv:
+            return argv
+    except (json.JSONDecodeError, ValueError):
+        pass
     if spec.kind == "flow":
         return build_tool_command(
             spec,
             design_name=resolve_flow_design_arg(job.project_id),
             extra_args=None,
         )
-    try:
-        parsed = json.loads(job.command)
-        if isinstance(parsed, list) and parsed:
-            return [str(part) for part in parsed]
-    except json.JSONDecodeError:
-        pass
     return list(spec.cmd)
 
 
@@ -224,7 +246,7 @@ async def execute_job(job_id: str) -> None:
 
     workdir = _workspace_dir(job_id)
     log_path = _log_path(job_id)
-    artifacts_prefix = f"{_settings.jobs_artifacts_prefix}/{job_id}"
+    artifacts_prefix = job_artifacts_prefix(job)
 
     sem = _get_semaphore()
     slots_left = getattr(sem, "_value", 0)
@@ -299,7 +321,7 @@ async def execute_job(job_id: str) -> None:
                         job.project_id,
                         "",
                         workdir,
-                        exclude_prefixes=[f"{_settings.jobs_artifacts_prefix}/"],
+                        exclude_prefixes=workspace_artifact_prefixes(),
                     )
             except Exception as e:  # noqa: BLE001
                 await _fail_job(
@@ -345,6 +367,24 @@ async def execute_job(job_id: str) -> None:
                 "status",
                 {"status": "running", "message": f"{len(downloaded)} dosya hazırlandı"},
             )
+
+            try:
+                _, flow_steps = decode_job_command(job.command)
+            except (json.JSONDecodeError, ValueError):
+                flow_steps = None
+            if spec.kind == "flow" and flow_steps:
+                await asyncio.to_thread(_install_partial_flow_runner, workdir)
+                await broker.publish(
+                    job_id,
+                    "status",
+                    {
+                        "status": "running",
+                        "message": (
+                            f"Secili OpenLane asamalari: "
+                            f"{flow_steps[0]} → {flow_steps[-1]} ({len(flow_steps)} adim)"
+                        ),
+                    },
+                )
 
             command = _job_command(job, spec)
 
@@ -491,6 +531,7 @@ async def execute_job(job_id: str) -> None:
                         job_id=job_id,
                         workdir=workdir,
                         uploaded_artifacts_prefix=uploaded_prefix,
+                        channel=getattr(job, "channel", None) or "default",
                     )
                     if layout_png_key:
                         await broker.publish(

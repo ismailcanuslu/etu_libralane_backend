@@ -118,9 +118,10 @@ def find_first_gds_in_tree(root: Path) -> Path | None:
     return gds_files[0] if gds_files else None
 
 
-def job_layout_png_object_key(job_id: str) -> str:
-    settings = get_settings()
-    return f"{settings.jobs_artifacts_prefix}/{job_id}/{FLOW_LAYOUT_PNG_NAME}"
+def job_layout_png_object_key(job_id: str, *, channel: str = "default") -> str:
+    from app.services.artifact_paths import job_layout_png_object_key as _key
+
+    return _key(job_id, channel=channel)
 
 
 async def generate_flow_layout_png_preview(
@@ -129,6 +130,7 @@ async def generate_flow_layout_png_preview(
     job_id: str,
     workdir: str,
     uploaded_artifacts_prefix: str | None,
+    channel: str = "default",
 ) -> str | None:
     """
     OpenLane Flow bittikten sonra ilk GDS için KLayout PNG üretir ve job artefaktına yazar.
@@ -143,7 +145,7 @@ async def generate_flow_layout_png_preview(
     workspace_gds_key = f"{uploaded_artifacts_prefix}/{rel}"
     try:
         png_bytes = await render_klayout_png(project_id, workspace_gds_key)
-        png_key = job_layout_png_object_key(job_id)
+        png_key = job_layout_png_object_key(job_id, channel=channel)
         storage.write_bytes(project_id, png_key, png_bytes, content_type="image/png")
         return png_key
     except (OSError, RuntimeError, FileNotFoundError):

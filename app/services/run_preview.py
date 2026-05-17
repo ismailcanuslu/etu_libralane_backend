@@ -14,6 +14,11 @@ from app.services.openlane_layout import (
     resolve_flow_design_arg,
 )
 from app.services.pdk_info import get_pdk_runtime_info
+from app.openlane1_flow_stages import (
+    OPENLANE1_FLOW_STAGE_IDS,
+    flow_steps_for_api,
+    normalize_flow_steps,
+)
 from app.tools_catalog import build_tool_command, get_tool
 
 # Araç → tipik çıktı dosyaları (workspace köküne göre)
@@ -74,6 +79,7 @@ def build_run_preview(
     action: str,
     *,
     design_name: str | None = None,
+    flow_steps: list[str] | None = None,
 ) -> dict:
     settings = get_settings()
     spec = get_tool(action)
@@ -84,11 +90,16 @@ def build_run_preview(
     flow_design_arg = (
         resolve_flow_design_arg(project_id, design_name) if spec.kind == "flow" else None
     )
+    normalized_flow_steps = None
+    if action == "openlane1-flow" and flow_steps is not None:
+        normalized_flow_steps = normalize_flow_steps(flow_steps)
+
     try:
         command = build_tool_command(
             spec,
             design_name=flow_design_arg if spec.kind == "flow" else design,
             extra_args=None,
+            flow_steps=normalized_flow_steps,
         )
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
@@ -97,7 +108,10 @@ def build_run_preview(
         project_id,
         "",
         recursive=True,
-        exclude_prefixes=[f"{settings.jobs_artifacts_prefix}/"],
+        exclude_prefixes=[
+            f"{settings.jobs_artifacts_prefix}/",
+            f"{settings.autonom_jobs_artifacts_prefix}/",
+        ],
     )
     keys = [o.key for o in objects]
 
@@ -133,7 +147,7 @@ def build_run_preview(
     pdk = get_pdk_runtime_info()
     job_workspace_template = f"{settings.jobs_host_dir}/<job_id>/workspace"
 
-    return {
+    preview: dict = {
         "action": spec.id,
         "label": spec.label,
         "description": spec.description,
@@ -158,3 +172,9 @@ def build_run_preview(
         "warnings": warnings,
         "requires_pdk": spec.requires_pdk,
     }
+    if action == "openlane1-flow":
+        preview["flow_stages"] = flow_steps_for_api()
+        preview["default_flow_steps"] = list(OPENLANE1_FLOW_STAGE_IDS)
+        preview["selected_flow_steps"] = normalized_flow_steps or list(OPENLANE1_FLOW_STAGE_IDS)
+        preview["flow_stage_count"] = len(OPENLANE1_FLOW_STAGE_IDS)
+    return preview

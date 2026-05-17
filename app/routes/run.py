@@ -11,6 +11,8 @@ from app.services import jobs_repo
 from app.services.pubsub import broker
 from app.services.terminal_tabs import registry as terminal_registry
 from app.services.openlane_layout import resolve_flow_design_arg, resolve_design_name
+from app.openlane1_flow_stages import normalize_flow_steps
+from app.services.job_command import encode_job_command
 from app.services.tool_runner import cancel_job, force_reset_jobs, schedule_execute_job
 from app.tools_catalog import build_tool_command, get_tool
 
@@ -22,6 +24,10 @@ class RunRequest(BaseModel):
     action: str = Field(min_length=1, max_length=64)
     design_name: Optional[str] = Field(default=None, max_length=128)
     args: Optional[List[str]] = None
+    flow_steps: Optional[List[str]] = Field(
+        default=None,
+        description="openlane1-flow icin calistirilacak makro asamalar (bos = tumu)",
+    )
     input_files: Optional[List[str]] = Field(
         default=None,
         description="Job workspace'e kopyalanacak proje dosya anahtarlari; bos = tum proje",
@@ -42,14 +48,27 @@ async def start_run(req: RunRequest):
         flow_design_arg = resolve_flow_design_arg(req.project_id, design_name)
         design_name = resolve_design_name(req.project_id, design_name)
 
+    normalized_flow_steps = None
+    if spec.id == "openlane1-flow" and req.flow_steps is not None:
+        try:
+            normalized_flow_steps = normalize_flow_steps(req.flow_steps)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     try:
-        command = build_tool_command(
+        command_argv = build_tool_command(
             spec,
             design_name=flow_design_arg if spec.kind == "flow" else design_name,
             extra_args=req.args,
+            flow_steps=normalized_flow_steps,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    command = encode_job_command(
+        command_argv,
+        flow_steps=normalized_flow_steps,
+    )
 
     input_keys_json: str | None = None
     if req.input_files:
