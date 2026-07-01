@@ -158,7 +158,12 @@ def _read_memory_dmi() -> tuple[str | None, int | None]:
 def _collect_cpu() -> dict[str, Any]:
     freq = psutil.cpu_freq()
     usage = psutil.cpu_percent(interval=0.35, percpu=False)
-    per_cpu = psutil.cpu_percent(interval=0.0, percpu=True)
+    per_cpu_raw = psutil.cpu_percent(interval=0.0, percpu=True)
+    # Bazi ortamlarda percpu=True beklenmedik sekilde tekil deger dondurebiliyor; listeye normalize et.
+    if isinstance(per_cpu_raw, (int, float)):
+        per_cpu = [per_cpu_raw]
+    else:
+        per_cpu = list(per_cpu_raw or [])
     model = platform.processor() or "Bilinmiyor"
     if not model.strip() and platform.system() == "Darwin":
         try:
