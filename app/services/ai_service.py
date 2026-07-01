@@ -257,14 +257,17 @@ def build_chat_messages(
     mode: str | None = None,
     rag_context: str | None = None,
 ) -> list[dict[str, str]]:
-    messages: list[dict[str, str]] = [{"role": "system", "content": _system_prompt(mode)}]
+    # Qwen3 gibi bazi sohbet sablonlari yalnizca tek ve en bastaki system mesajina izin verir.
+    # RAG baglamini ayri bir system mesaji olarak eklemek yerine bastaki system mesajina goml.
+    system_content = _system_prompt(mode)
+    if rag_context:
+        system_content = f"{system_content}\n\n{_RAG_CONTEXT_PREFIX}{rag_context}"
+    messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
     for item in history or ():
         role = item.get("role")
         content = item.get("content")
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": content})
-    if rag_context:
-        messages.append({"role": "system", "content": _RAG_CONTEXT_PREFIX + rag_context})
     messages.append({"role": "user", "content": message})
     return messages
 
