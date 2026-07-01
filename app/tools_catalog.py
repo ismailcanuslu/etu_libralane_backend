@@ -64,7 +64,8 @@ def _flow_script(
     args = ""
     if extra_args:
         args = " " + " ".join(shlex.quote(value) for value in extra_args)
-    design = shlex.quote(design_name)
+    # design_name'i her zaman tek tirnaga al (shlex.quote guvenli stringleri tirnaksiz birakir).
+    design = "'" + design_name.replace("'", "'\\''") + "'"
     tcllib = _openlane_tcllib_setup_shell()
     steps_env = ""
     partial_runner = ""
