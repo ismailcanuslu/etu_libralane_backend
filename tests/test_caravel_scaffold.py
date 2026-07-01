@@ -97,13 +97,13 @@ class CaravelScaffoldTests(unittest.TestCase):
                 patch("app.services.caravel_layout.project_dir", return_value=base),
             ):
                 keys = flow_input_keys(project_id)
-            self.assertIn("flow.tcl", keys)
-            self.assertIn("openlane/user_project_wrapper/config.json", keys)
-            self.assertTrue(any(k.endswith(".v") for k in keys))
-            self.assertEqual(
-                resolve_flow_design_arg(project_id),
-                "openlane/user_project_wrapper",
-            )
+                self.assertIn("flow.tcl", keys)
+                self.assertIn("openlane/user_project_wrapper/config.json", keys)
+                self.assertTrue(any(k.endswith(".v") for k in keys))
+                self.assertEqual(
+                    resolve_flow_design_arg(project_id),
+                    "openlane/user_project_wrapper",
+                )
 
 
 if __name__ == "__main__":
