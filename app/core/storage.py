@@ -56,10 +56,17 @@ def _stat_object(project_id: str, key: str) -> ObjectInfo:
     )
 
 
-def ensure_project(project_id: str) -> None:
-    from app.services.project_scaffold import ensure_caravel_guide, scaffold_openlane_project
+def ensure_project(project_id: str, template: str = "caravel") -> None:
+    from app.services.project_scaffold import (
+        ensure_caravel_guide,
+        scaffold_openlane_project,
+        scaffold_verilog_project,
+    )
 
     project_dir(project_id, create=True)
+    if template == "verilog":
+        scaffold_verilog_project(project_id)
+        return
     scaffold_openlane_project(project_id)
     ensure_caravel_guide(project_id)
 

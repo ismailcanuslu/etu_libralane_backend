@@ -13,13 +13,18 @@ class OllamaRuntimeTests(unittest.TestCase):
     def tearDown(self) -> None:
         reset_ollama_base_url_cache()
 
+    DEFAULT_MODEL = "hf.co/bartowski/Qwen_Qwen3.6-27B-GGUF:IQ3_XS"
+
+    def test_default_model_value(self) -> None:
+        self.assertEqual(OllamaPrefs().model, self.DEFAULT_MODEL)
+
     @patch("app.services.ollama_runtime.load_ollama_prefs")
     def test_default_host_start_uses_ollama_run_model(self, mock_load: MagicMock) -> None:
-        mock_load.return_value = OllamaPrefs(model="gemma4:26b", host_start_command="")
+        mock_load.return_value = OllamaPrefs(host_start_command="")
         command = build_ollama_host_start_command()
         self.assertIn("nsenter", command)
         self.assertIn("ollama run", command)
-        self.assertIn("gemma4:26b", command)
+        self.assertIn(self.DEFAULT_MODEL, command)
         self.assertIn("nohup", command)
 
     @patch("app.services.ollama_runtime.load_ollama_prefs")

@@ -49,6 +49,18 @@ class Settings(BaseSettings):
     host_terminal_container_cwd: str = "/"
     max_host_terminal_sessions: int = 4
 
+    # RAG (Qdrant) — sunucudaki hazir "librelane_verilog" koleksiyonundan retrieval.
+    # indexer.py ile birebir ayni embedding modeli kullanilmali (nomic-embed-text).
+    rag_enabled: bool = True
+    qdrant_url: str = "http://127.0.0.1:6333"
+    qdrant_collection: str = "librelane_verilog"
+    rag_embedding_model: str = "nomic-embed-text"
+    rag_top_k: int = 5
+    # Modele enjekte edilen referans baglaminin ust siniri (karakter).
+    rag_max_context_chars: int = 6000
+    # Qdrant istekleri icin kisa timeout (saniye); RAG opsiyonel oldugu icin sohbeti bekletmez.
+    rag_timeout_seconds: float = 5.0
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

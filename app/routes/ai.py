@@ -11,6 +11,7 @@ from app.services.ai_service import analyze_log, chat_reply
 from app.services.chat_history_service import get_messages_for_project, save_project_history
 from app.services.ollama_config import OllamaPrefs, load_ollama_prefs, ollama_prefs_as_api_dict, save_ollama_prefs
 from app.services.ollama_runtime import get_ollama_status_async, reset_ollama_base_url_cache, resolve_ollama_base_url_sync
+from app.services.rag_service import rag_status, retrieve
 
 router = APIRouter(prefix="/ai")
 
@@ -48,6 +49,11 @@ class OllamaConfigPut(BaseModel):
 class ChatHistoryBody(BaseModel):
     project_id: str = Field(min_length=1, max_length=512)
     messages: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RagSearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=50)
 
 
 def _ollama_client() -> tuple[ollama.Client, OllamaPrefs]:
@@ -94,7 +100,7 @@ async def ollama_config_get():
 async def ollama_config_put(body: OllamaConfigPut):
     prefs = OllamaPrefs(
         base_url=body.base_url.strip() or "http://127.0.0.1:11434",
-        model=body.model.strip() or "gemma4:26b",
+        model=body.model.strip() or "hf.co/bartowski/Qwen_Qwen3.6-27B-GGUF:IQ3_XS",
         timeout_seconds=body.timeout_seconds,
         auto_start=body.auto_start,
         container_name=body.container_name.strip(),
@@ -122,6 +128,28 @@ async def ollama_ps():
         return await asyncio.to_thread(_ollama_ps_sync)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Ollama ps alinamadi: {exc}") from exc
+
+
+@router.get("/rag/status")
+async def rag_status_get():
+    return await asyncio.to_thread(rag_status)
+
+
+@router.post("/rag/search")
+async def rag_search(request: RagSearchRequest):
+    hits = await asyncio.to_thread(retrieve, request.query, request.top_k)
+    return {
+        "count": len(hits),
+        "results": [
+            {
+                "file_path": hit.file_path,
+                "category": hit.category,
+                "score": hit.score,
+                "content": hit.content,
+            }
+            for hit in hits
+        ],
+    }
 
 
 @router.get("/chat/history")

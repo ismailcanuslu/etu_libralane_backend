@@ -14,7 +14,7 @@ from app.core.config import get_settings
 @dataclass
 class OllamaPrefs:
     base_url: str = "http://127.0.0.1:11434"
-    model: str = "gemma4:26b"
+    model: str = "hf.co/bartowski/Qwen_Qwen3.6-27B-GGUF:IQ3_XS"
     timeout_seconds: int = 300
     auto_start: bool = True
     container_name: str = ""

@@ -403,3 +403,121 @@ sim:
             created.append(rel)
 
     return created
+
+
+def scaffold_verilog_project(project_id: str) -> list[str]:
+    """
+    Proje boşsa sade, Caravel'siz bir Verilog + simülasyon iskeleti oluşturur.
+    Sadece RTL + testbench + Makefile; OpenLane/Caravel dosyaları yok.
+    """
+    base = project_dir(project_id, create=True)
+    existing = list(base.rglob("*"))
+    has_user_files = any(
+        p.is_file()
+        and not p.relative_to(base).as_posix().startswith("_jobs/")
+        and not p.relative_to(base).as_posix().startswith("_autonom_jobs/")
+        for p in existing
+    )
+    if has_user_files:
+        return []
+
+    created: list[str] = []
+    templates: list[tuple[str, str]] = [
+        (
+            "README.md",
+            f"""# {project_id}
+
+Sade **Verilog** projesi (Caravel/OpenLane iskeleti olmadan).
+
+## Dizinler
+
+| Yol | Açıklama |
+|-----|----------|
+| `src/` | Sentezlenebilir RTL modülleri (`*.v`) |
+| `tb/` | Testbench dosyaları (`tb_*.v`) |
+| `Makefile` | Icarus Verilog ile yerel simülasyon |
+
+## Yerel simülasyon
+
+```bash
+make sim
+```
+
+İleride fiziksel tasarım (OpenLane/Caravel) gerekirse yeni bir Caravel projesi açabilir
+veya bu RTL'i oraya taşıyabilirsiniz.
+""",
+        ),
+        (
+            "src/main.v",
+            """// Örnek sentezlenebilir modül — kendi tasarımınızla değiştirin.
+`default_nettype none
+
+module main (
+    input  wire clk,
+    input  wire rst_n,
+    output reg  [7:0] count
+);
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            count <= 8'd0;
+        else
+            count <= count + 8'd1;
+    end
+endmodule
+
+`default_nettype wire
+""",
+        ),
+        (
+            "tb/tb_main.v",
+            """`timescale 1ns/1ps
+
+module tb_main;
+    reg clk = 0;
+    reg rst_n = 0;
+    wire [7:0] count;
+
+    always #5 clk = ~clk;
+
+    main uut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .count(count)
+    );
+
+    initial begin
+        $dumpfile("tb/wave.vcd");
+        $dumpvars(0, tb_main);
+        #12 rst_n = 1;
+        #200 $finish;
+    end
+endmodule
+""",
+        ),
+        (
+            "Makefile",
+            """# Yerel simülasyon (Icarus Verilog) — sade Verilog projesi
+RTL = src/main.v
+TB  = tb/tb_main.v
+
+.PHONY: sim
+sim:
+\tiverilog -o sim.vvp $(RTL) $(TB) && vvp sim.vvp
+""",
+        ),
+        (
+            "plans/.gitkeep",
+            "",
+        ),
+        (
+            "runs/.gitkeep",
+            "",
+        ),
+    ]
+
+    for rel, body in templates:
+        path = base / rel
+        if _write_if_missing(path, body):
+            created.append(rel)
+
+    return created

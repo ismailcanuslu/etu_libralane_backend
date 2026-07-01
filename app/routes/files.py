@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import mimetypes
+from typing import Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -11,25 +12,32 @@ from app.core.workspace_paths import WorkspacePathError
 
 router = APIRouter(prefix="/files", tags=["files"])
 
+ProjectTemplate = Literal["caravel", "verilog"]
+
 
 class CreateProjectRequest(BaseModel):
     name: str = Field(min_length=1)
+    template: ProjectTemplate = "caravel"
 
 
 def _error(message: str, status_code: int) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"error": message})
 
 
-def _create_project(project_id: str) -> JSONResponse:
+def _normalize_template(template: str) -> str:
+    return template if template == "verilog" else "caravel"
+
+
+def _create_project(project_id: str, template: str = "caravel") -> JSONResponse:
     try:
-        storage.ensure_project(project_id)
+        storage.ensure_project(project_id, template=_normalize_template(template))
     except WorkspacePathError as exc:
         return _error(str(exc), 400)
     except OSError as exc:
         return _error(str(exc), 502)
     return JSONResponse(
         status_code=201,
-        content={"project": project_id, "status": "ready"},
+        content={"project": project_id, "status": "ready", "template": _normalize_template(template)},
     )
 
 
@@ -46,12 +54,12 @@ def list_projects():
 @router.post("")
 def create_project_from_body(req: CreateProjectRequest):
     """Next.js BFF /api/files POST gövdesi ile uyumlu."""
-    return _create_project(req.name.strip())
+    return _create_project(req.name.strip(), req.template)
 
 
 @router.post("/{project_id}")
-def create_project(project_id: str):
-    return _create_project(project_id)
+def create_project(project_id: str, template: str = "caravel"):
+    return _create_project(project_id, template)
 
 
 @router.delete("/{project_id}")

@@ -5,11 +5,14 @@ from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+import asyncio
+
 import httpx
 import ollama
 
 from app.services.ollama_config import OllamaPrefs, load_ollama_prefs
 from app.services.ollama_runtime import ensure_ollama_running, resolve_ollama_base_url_sync
+from app.services.rag_service import retrieve_context
 from app.services.text_format import (
     DEFAULT_CHAT_MAX_TOKENS,
     merge_stream_field,
@@ -23,7 +26,14 @@ _BASE_SYSTEM = (
     "Answer in Turkish when the user writes in Turkish. "
     "Always format replies in valid Markdown: use blank lines between paragraphs, "
     "## headings for sections, numbered or bullet lists for steps, and fenced ```code``` blocks for Verilog/config. "
-    "Never glue words together without spaces."
+    "Never glue words together without spaces. "
+    "When reference code snippets from the knowledge base are provided, prefer them as ground truth "
+    "and adapt them to the user's request; if they are irrelevant, ignore them and do not invent APIs."
+)
+
+_RAG_CONTEXT_PREFIX = (
+    "Asagidaki referans kod parcalari, dahili Verilog/OpenLane kod havuzundan (RAG) alindi. "
+    "Ilgiliyse bunlari temel al ve stiline uy; ilgisizse yoksay.\n\n"
 )
 
 _MODE_PROMPTS: dict[str, str] = {
@@ -245,6 +255,7 @@ def build_chat_messages(
     history: Iterable[Mapping[str, str]] | None = None,
     *,
     mode: str | None = None,
+    rag_context: str | None = None,
 ) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = [{"role": "system", "content": _system_prompt(mode)}]
     for item in history or ():
@@ -252,6 +263,8 @@ def build_chat_messages(
         content = item.get("content")
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": content})
+    if rag_context:
+        messages.append({"role": "system", "content": _RAG_CONTEXT_PREFIX + rag_context})
     messages.append({"role": "user", "content": message})
     return messages
 
@@ -264,7 +277,8 @@ async def aiter_chat_stream(
     mode: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Ollama /api/chat NDJSON akisi; her satirda birikimli thinking/content (varsa) dondurur."""
-    messages = build_chat_messages(message, history, mode=mode)
+    rag_context = await asyncio.to_thread(retrieve_context, message)
+    messages = build_chat_messages(message, history, mode=mode, rag_context=rag_context)
     ensure_ollama_running()
     prefs = load_ollama_prefs()
     num_predict = resolve_chat_max_tokens(prefs) if max_tokens is None else max_tokens
@@ -341,7 +355,8 @@ def chat_reply(
     *,
     mode: str | None = None,
 ) -> ChatReply:
-    messages = build_chat_messages(message, history, mode=mode)
+    rag_context = retrieve_context(message)
+    messages = build_chat_messages(message, history, mode=mode, rag_context=rag_context)
     result = _ollama_chat(messages, max_tokens=resolve_chat_max_tokens())
     return ChatReply(
         text=normalize_model_markdown(result.text) or "",
